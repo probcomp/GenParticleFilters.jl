@@ -1,4 +1,5 @@
 ## Rejuvenation moves for SMC algorithms ##
+export pf_move_accept!, pf_move_reweight!
 
 "Rejuvenate particles by repeated application of a Metropolis-Hastings kernel."
 function pf_move_accept!(state::ParticleFilterState,

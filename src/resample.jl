@@ -1,4 +1,5 @@
 ## Resampling methods for SMC algorithms ##
+export pf_resample!, pf_multinomial_resample!, pf_stratified_resample!
 
 "Resamples particles in the filter."
 function pf_resample!(state::ParticleFilterState,
