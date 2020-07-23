@@ -1,7 +1,12 @@
 ## Resampling methods for SMC algorithms ##
 export pf_resample!, pf_multinomial_resample!, pf_stratified_resample!
 
-"Resamples particles in the filter."
+"""
+    pf_resample!(state::ParticleFilterState, method=:multinomial)
+
+Resamples particles in the filter, stochastically pruning low-weight particles.
+The resampling method can optionally be specified (default: multinomial).
+"""
 function pf_resample!(state::ParticleFilterState,
                       method::Symbol=:multinomial; kwargs...)
     if method == :multinomial
@@ -13,7 +18,13 @@ function pf_resample!(state::ParticleFilterState,
     end
 end
 
-"Perform multinomial resampling (i.e. simple random resampling) of the particles."
+"""
+    pf_multnomial_resample!(state::ParticleFilterState)
+
+Performs multinomial resampling (i.e. simple random resampling) of the
+particles in the filter. Each trace (i.e. particle) is resampled with
+probability proportional to its weight.
+"""
 function pf_multinomial_resample!(state::ParticleFilterState)
     n_particles = length(state.traces)
     log_total_weight, log_weights = Gen.normalize_weights(state.log_weights)
@@ -32,7 +43,16 @@ function pf_multinomial_resample!(state::ParticleFilterState)
     return state
 end
 
-"Perform stratified resampling of the particles in the filter."
+"""
+    pf_stratified_resample!(state::ParticleFilterState)
+
+Performs stratified resampling of the particles in the filter, which reduces
+variance relative to multinomial sampling. First, uniform random samples
+``u_1, ..., u_n`` are drawn within the strata ``[0, 1/n)``, ..., ``[n-1/n, 1)``,
+where ``n`` is the number of particles. Then, given the cumulative normalized
+weights ``W_k = Σ_{j=1}^{k} w_j ``, sample the ``k``th particle for each ``u_i``
+where ``W_{k-1} ≤ u_i < W_k``.
+"""
 function pf_stratified_resample!(state::ParticleFilterState;
                                  sort_particles::Bool=true)
     # Optionally sort particles by weight before resampling

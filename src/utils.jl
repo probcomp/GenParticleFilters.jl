@@ -3,7 +3,7 @@ export get_log_norm_weights, get_norm_weights
 export effective_sample_size, get_ess
 export mean, var
 
-using Statistics: mean, var
+using Statistics
 
 """
     get_log_norm_weights(state::ParticleFilterState)
