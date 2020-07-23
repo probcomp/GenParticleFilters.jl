@@ -1,7 +1,38 @@
 ## Rejuvenation moves for SMC algorithms ##
-export pf_move_accept!, pf_move_reweight!
+export pf_rejuvenate!, pf_move_accept!, pf_move_reweight!
 
-"Rejuvenate particles by repeated application of a Metropolis-Hastings kernel."
+"""
+    pf_rejuvenate!(state::ParticleFilterState, kern, kern_args::Tuple=(),
+                   n_iters::Int=1; method=:move)
+
+Rejuvenates particles by repeated application of a kernel `kern`. `kern`
+should be a callable which takes a trace as its first argument, and returns
+a tuple with a trace as the first return value. `method` specifies the
+rejuvenation method: `:move` for MCMC moves without a reweighting step,
+and `:reweight` for rejuvenation with a reweighting step.
+"""
+function pf_rejuvenate!(state::ParticleFilterState, kern, kern_args::Tuple=(),
+                        n_iters::Int=1; method::Symbol=:move)
+    if method == :move
+        return pf_move_accept!(state, kern, kern_args, n_iters)
+    elseif method == :reweight
+        return pf_move_reweight!(state, kern, kern_args, n_iters)
+    else
+        error("Method $method not recognized.")
+    end
+end
+
+"""
+    pf_move_accept!(state::ParticleFilterState, kern,
+                    kern_args::Tuple=(), n_iters::Int=1)
+
+Rejuvenates particles by repeated application of a MCMC kernel `kern`. `kern`
+should be a callable which takes a trace as its first argument, and returns
+a tuple `(trace, accept)`, where `trace` is the (potentially) new trace, and
+`accept` is true if the MCMC move was accepted. Subsequent arguments to `kern`
+can be supplied with `kern_args`. The kernel is repeatedly applied to each trace
+for `n_iters`.
+"""
 function pf_move_accept!(state::ParticleFilterState,
                          kern, kern_args::Tuple=(), n_iters::Int=1)
     # Potentially rejuvenate each trace
@@ -16,9 +47,24 @@ function pf_move_accept!(state::ParticleFilterState,
     tmp = state.traces
     state.traces = state.new_traces
     state.new_traces = tmp
+    return state
 end
 
-"Rejuvenate particles via repeated move-reweight steps."
+"""
+    pf_move_reweight!(state::ParticleFilterState, kern,
+                      kern_args::Tuple=(), n_iters::Int=1)
+
+Rejuvenates and reweights particles by repeated application of a reweighting
+kernel `kern`, as described in [1]. `kern` should be a callable which takes a
+trace as its first argument, and returns a tuple `(trace, rel_weight)`,
+where `trace` is the new trace, and `rel_weight` is the relative log-importance
+weight. Subsequent arguments to `kern` can be supplied with `kern_args`.
+The kernel is repeatedly applied to each trace for `n_iters`, and the weights
+accumulated accordingly.
+
+[1] R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for
+online inference," Preprint series. Statistical Research Report, 2013.
+"""
 function pf_move_reweight!(state::ParticleFilterState,
                            kern, kern_args::Tuple=(), n_iters::Int=1)
     # Move and reweight each trace
@@ -36,4 +82,5 @@ function pf_move_reweight!(state::ParticleFilterState,
     tmp = state.traces
     state.traces = state.new_traces
     state.new_traces = tmp
+    return state
 end
