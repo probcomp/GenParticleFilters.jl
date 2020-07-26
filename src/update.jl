@@ -33,7 +33,7 @@ function pf_update!(state::ParticleFilterState, new_args::Tuple,
                     argdiffs::Tuple, observations::ChoiceMap)
     n_particles = length(state.traces)
     for i=1:n_particles
-        (state.new_traces[i], increment, _, discard) =
+        state.new_traces[i], increment, _, discard =
             update(state.traces[i], new_args, argdiffs, observations)
         if !isempty(discard)
             error("Choices were updated or deleted: $discard")
@@ -55,7 +55,7 @@ function pf_update!(state::ParticleFilterState, new_args::Tuple,
         (prop_choices, prop_weight, _) =
             propose(proposal, (state.traces[i], proposal_args...))
         constraints = merge(observations, prop_choices)
-        (state.new_traces[i], up_weight, _, disc) =
+        state.new_traces[i], up_weight, _, discard =
             update(state.traces[i], new_args, argdiffs, constraints)
         if !isempty(discard)
             error("Choices were updated or deleted: $discard")

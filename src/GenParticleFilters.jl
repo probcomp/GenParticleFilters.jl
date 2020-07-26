@@ -3,6 +3,8 @@ module GenParticleFilters
 using Gen, Distributions
 using Gen: ParticleFilterState
 
+export ParticleFilterState
+
 include("utils.jl")
 include("initialize.jl")
 include("update.jl")
