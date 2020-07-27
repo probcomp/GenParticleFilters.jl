@@ -40,7 +40,7 @@ function pf_multinomial_resample!(state::ParticleFilterState)
     weights = exp.(log_weights)
     state.log_ml_est += log_total_weight - log(n_particles)
     # Resample new traces according to current normalized weights
-    rand!(Categorical(weights), state.parents)
+    Distributions.rand!(Categorical(weights), state.parents)
     for i=1:n_particles
         state.new_traces[i] = state.traces[state.parents[i]]
         state.log_weights[i] = 0.
@@ -72,12 +72,14 @@ function pf_residual_resample!(state::ParticleFilterState)
         n_copies = floor(Int, n_particles * w)
         if n_copies == 0 continue end
         state.parents[n_resampled+1:n_resampled+n_copies] .= i
-        state.new_traces[n_resampled+1:n_resampled+n_copies] .= state.traces[i]
+        for j in 1:n_copies
+            state.new_traces[n_resampled+j] = state.traces[i]
+        end
         n_resampled += n_copies
     end
     # Sample remainder at random
     if n_resampled < n_particles
-        rand!(Categorical(weights), state.parents[n_resampled+1:end])
+        Distributions.rand!(Categorical(weights), state.parents[n_resampled+1:end])
         state.new_traces[n_resampled+1:end] =
             state.traces[state.parents[n_resampled+1:end]]
     end
@@ -119,7 +121,7 @@ function pf_stratified_resample!(state::ParticleFilterState;
             accum_weight += weights[i_old+1]
             i_old += 1
         end
-        state.parents[i_new] = i_old
+        state.parents[i_new] = sort_particles ? order[i_old] : i_old
         state.new_traces[i_new] = state.traces[i_old]
         state.log_weights[i_new] = 0.0
     end
