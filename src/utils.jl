@@ -3,6 +3,7 @@ export get_log_norm_weights, get_norm_weights
 export effective_sample_size, get_ess
 export mean, var
 
+using Gen: effective_sample_size
 using Statistics
 
 """
@@ -36,7 +37,7 @@ Gen.effective_sample_size(state::ParticleFilterState) =
 
 Alias for `effective_sample_size`(@ref). Computes the effective sample size.
 """
-get_ess(state::ParticleFilterState) = effective_sample_size(state)
+get_ess(state::ParticleFilterState) = Gen.effective_sample_size(state)
 
 """
     mean(state::ParticleFilterState[, addr])

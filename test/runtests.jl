@@ -1,4 +1,4 @@
-using GenParticleFilters, Gen, Test
+using GenParticleFilters, Gen, Test, Logging
 
 @gen (static) function line_step(t::Int, x::Float64, slope::Float64)
     x = x + 1
@@ -129,4 +129,91 @@ copies = sum([tr == old_traces[max_idx] for tr in new_traces])
 @test copies >= min_copies
 end
 
+end
+
+@testset "Particle rejuvenation" begin
+
+@testset "Move-reweight kernel" begin
+out_addr = :line => 1 => :outlier
+observations = choicemap((:line => 1 => :y, 0))
+trace, _ = generate(line_model, (1,), observations)
+slope, outlier = trace[:slope], trace[out_addr]
+
+# Test selection variant
+expected_w(out_old, out_new, slope) =
+    logpdf(normal, 0, slope, out_new ? 10. : 1.) -
+    logpdf(normal, 0, slope, out_old ? 10. : 1.)
+trs_ws = [move_reweight(trace, select(out_addr)) for i in 1:100]
+@test all([w ≈ expected_w(outlier, tr[out_addr], slope) for (tr, w) in trs_ws])
+
+# Test proposal variant
+expected_w(out_old, out_new, slope) =
+    logpdf(bernoulli, out_new, 0.1) - logpdf(bernoulli, out_old, 0.1) +
+    logpdf(normal, 0, slope, out_new ? 10. : 1.) -
+    logpdf(normal, 0, slope, out_old ? 10. : 1.) +
+    (out_old == out_new ? 0.0 :
+        logpdf(bernoulli, out_old, 0.9) - logpdf(bernoulli, out_old, 0.1))
+@gen outlier_propose(tr, idx) = {:line => idx => :outlier} ~ bernoulli(0.9)
+trs_ws = [move_reweight(trace, outlier_propose, (1,)) for i in 1:100]
+@test all([w ≈ expected_w(outlier, tr[out_addr], slope) for (tr, w) in trs_ws])
+end
+
+@testset "Move-accept rejuvenation" begin
+# Log which particles were rejuvenated
+buffer = IOBuffer()
+logger = SimpleLogger(buffer, Logging.Debug)
+state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
+old_traces = get_traces(state)
+with_logger(logger) do
+    pf_move_accept!(state, metropolis_hastings, (select(:slope),), 1)
+end
+
+# Extract acceptances from debug log
+lines = split(String(take!(buffer)), "\n")
+lines = filter(s -> occursin("Accepted: ", s), lines)
+accepts = [match(r".*Accepted: (\w+).*", l).captures[1] for l in lines]
+accepts = parse.(Bool, accepts)
+
+# Check that only traces that were accepted are rejuvenated
+new_traces = get_traces(state)
+@test all(a ? t1 !== t2 : t1 === t2
+          for (a, t1, t2) in zip(accepts, old_traces, new_traces))
+end
+
+@testset "Move-reweight rejuvenation" begin
+# Log which particles were rejuvenated
+buffer = IOBuffer()
+logger = SimpleLogger(buffer, Logging.Debug)
+state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
+old_weights = copy(get_log_weights(state))
+with_logger(logger) do
+    pf_move_reweight!(state, move_reweight, (select(:slope),), 1)
+end
+new_weights = copy(get_log_weights(state))
+
+# Extract relative weights from debug log
+lines = split(String(take!(buffer)), "\n")
+lines = filter(s -> occursin("Rel. Weight: ", s), lines)
+rel_weights = [match(r".*Rel\. Weight: (.+)\s*", l).captures[1] for l in lines]
+rel_weights = parse.(Float64, rel_weights)
+
+# Check that weights are adjusted accordingly
+@test all(isapprox.(new_weights, old_weights .+ rel_weights; atol=1e-3))
+end
+
+end
+
+@testset "Utility functions" begin
+@gen model() = x ~ normal(0, 0)
+state = pf_initialize(model, (), choicemap(), 100)
+
+@test mean(state, :x) == 0
+@test mean(state) == 0
+@test var(state, :x) == 0
+@test var(state) == 0
+
+weights = get_norm_weights(state)
+@test sum(weights) ≈ 1.0
+ess = get_ess(state)
+@test ess ≈ sum(weights)^2 / sum(weights .^ 2)
 end

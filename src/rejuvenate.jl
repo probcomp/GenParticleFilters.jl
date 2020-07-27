@@ -103,7 +103,8 @@ involved in proposing and re-weighting random choices:
 1. The `selection` variant regenerates the addresses specified by `selection`
    using the model's default proposal.
 2. A `proposal` generative function and arguments can be provided, to propose
-   new random choices using a custom proposal distribution.
+   new random choices using a custom proposal distribution. `proposal` must
+   take the original trace as its first input argument.
 3. An `involution` can also be provided, to handle more complex proposal
    distributions which add/remove trace addresses.
 4. Separate forward and backward proposal distributions, `proposal_fwd` and
