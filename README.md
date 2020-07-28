@@ -39,12 +39,12 @@ function particle_filter(observations, n_particles, ess_thresh=0.5)
     # Iterate across timesteps
     for t=2:n_obs
         # Resample and rejuvenate if the effective sample size is too low
-        if effective_sample_size(state) < ess_thresh
+        if effective_sample_size(state) < ess_thresh * n_particles
             # Perform residual resampling, pruning low-weight particles
             pf_resample!(state, :residual)
             # Perform a Gibbs rejuvenation move on past choices
             rejuv_sel = select(t-1=>:moving, t-1=>:y, t=>:moving, t=>:y)
-            pf_rejuvenate!(state, mh, (rejul_sel,))
+            pf_rejuvenate!(state, mh, (rejuv_sel,))
         end
         # Update filter state with new observation at timestep t
         pf_update!(state, (t,), (UnknownChange(),), obs_choices[t])
@@ -69,13 +69,13 @@ We can then use `mean` and `var` to compute the empirical posterior mean
 and variance for variables of interest:
 ```julia
 julia> mean(state, 5=>:moving) |> x->round(x, digits=2) # Prob. motion at t=5
-0.0
+0.07
 julia> var(state, 5=>:moving) |> x->round(x, digits=2) # Variance at t=5
-0.0
+0.07
 julia> mean(state, 6=>:moving) |> x->round(x, digits=2) # Prob. motion at t=6
-0.67
+0.95
 julia> var(state, 6=>:moving) |> x->round(x, digits=2) # Variance at t=6
-0.22
+0.05
 ```
 
 We see that the filter accurately infers a change in motion from `t=5` to `t=6`.
