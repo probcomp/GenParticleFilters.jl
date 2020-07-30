@@ -9,6 +9,15 @@ Press `]` at the Julia REPL to enter the package manager, then run:
 add https://github.com/probcomp/GenParticleFilters.jl.git
 ```
 
+## Features
+
+In addition to basic particle filtering functionality (i.e., initializing a particle filter and updating it with new observations), this package provides support for:
+
+- Multiple resampling methods, including variance-reducing methods such as residual resampling and stratified resampling [[1]](#1)
+- Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity without reweighting particles [[2]](#2)
+- Move-reweight rejuvenation, which increases particle diversity while reweighting particles [[3]](#3)
+- Utility functions to compute distributional statistics (e.g. mean and variance) for the inferred latent variables
+
 ## Example
 
 Suppose we are trying to infer the position `y` of an object that is either staying still or moving sinusoidally, given noisy measurements `y_obs`. We can write a model of this object's motion as an `@gen` function:
@@ -79,3 +88,11 @@ julia> var(state, 6=>:moving) |> x->round(x, digits=2) # Variance at t=6
 ```
 
 We see that the filter accurately infers a change in motion from `t=5` to `t=6`.
+
+## References
+
+<a id="1">[1]</a> R. Douc and O. Cappé, "Comparison of resampling schemes for particle filtering," in ISPA 2005. Proceedings of the 4th International Symposium on Image and Signal Processing and Analysis, 2005., 2005, pp. 64-69.
+
+<a id="2">[2]</a> N. Chopin, “A sequential particle filter method for static models,” Biometrika 89.3, 2000, pp. 539-552.
+
+<a id="3">[3]</a> R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for online inference," Preprint series. Statistical Research Report, 2013.
