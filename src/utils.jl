@@ -6,6 +6,8 @@ export mean, var
 using Gen: effective_sample_size
 using Statistics
 
+normalize(v::AbstractVector) = v ./ sum(v)
+
 """
     get_log_norm_weights(state::ParticleFilterState)
 

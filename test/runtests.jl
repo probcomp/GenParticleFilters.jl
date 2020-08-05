@@ -106,6 +106,19 @@ new_traces = get_traces(state)
 copies = [sum([t1 == t2 for t1 in new_traces]) for t2 in old_traces]
 @test new_traces == old_traces[state.parents]
 @test all(copies .>= min_copies)
+
+# Same test but with a custom priority function
+p_fn = w -> w ^ 0.5
+state = pf_initialize(line_model, (10,), generate_line(10), 100)
+old_traces = get_traces(state)
+weights = p_fn.(exp.(get_log_norm_weights(state)))
+weights ./= sum(weights)
+min_copies = floor.(Int, weights * 100)
+state = pf_residual_resample!(state; priority_fn=p_fn)
+new_traces = get_traces(state)
+copies = [sum([t1 == t2 for t1 in new_traces]) for t2 in old_traces]
+@test new_traces == old_traces[state.parents]
+@test all(copies .>= min_copies)
 end
 
 @testset "Stratified resampling" begin
@@ -123,6 +136,20 @@ weights = exp.(get_log_norm_weights(state))
 max_weight, max_idx = findmax(weights)
 min_copies = floor.(Int, max_weight * 100)
 state = pf_stratified_resample!(state; sort_particles=true)
+new_traces = get_traces(state)
+copies = sum([tr == old_traces[max_idx] for tr in new_traces])
+@test new_traces == old_traces[state.parents]
+@test copies >= min_copies
+
+# Same test but with a custom priority function
+p_fn = w -> w ^ 0.5
+state = pf_initialize(line_model, (10,), generate_line(10), 100)
+old_traces = get_traces(state)
+weights = p_fn.(exp.(get_log_norm_weights(state)))
+weights ./= sum(weights)
+max_weight, max_idx = findmax(weights)
+min_copies = floor.(Int, max_weight * 100)
+state = pf_stratified_resample!(state; sort_particles=true, priority_fn=p_fn)
 new_traces = get_traces(state)
 copies = sum([tr == old_traces[max_idx] for tr in new_traces])
 @test new_traces == old_traces[state.parents]

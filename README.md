@@ -13,9 +13,10 @@ add https://github.com/probcomp/GenParticleFilters.jl.git
 
 In addition to basic particle filtering functionality (i.e., initializing a particle filter and updating it with new observations), this package provides support for:
 
-- Multiple resampling methods, including variance-reducing methods such as residual resampling and stratified resampling [[1]](#1)
-- Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity without reweighting particles [[2]](#2)
-- Move-reweight rejuvenation, which increases particle diversity while reweighting particles [[3]](#3)
+- Multiple resampling methods, including variance-reducing methods such as residual resampling [[1]](#1)
+- Custom priority weights for resampling, to control the aggressiveness of pruning [[2]](#2)
+- Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity [[3]](#3)
+- Move-reweight rejuvenation, which increases particle diversity while reweighting particles [[4]](#4)
 - Utility functions to compute distributional statistics (e.g. mean and variance) for the inferred latent variables
 
 ## Example
