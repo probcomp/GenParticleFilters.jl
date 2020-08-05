@@ -94,6 +94,8 @@ We see that the filter accurately infers a change in motion from `t=5` to `t=6`.
 
 <a id="1">[1]</a> R. Douc and O. Cappé, "Comparison of resampling schemes for particle filtering," in ISPA 2005. Proceedings of the 4th International Symposium on Image and Signal Processing and Analysis, 2005., 2005, pp. 64-69.
 
-<a id="2">[2]</a> N. Chopin, “A sequential particle filter method for static models,” Biometrika 89.3, 2000, pp. 539-552.
+<a id="2">[2]</a> R. Chen, “Sequential Monte Carlo methods and their applications,” in Markov Chain Monte Carlo, vol. Volume 7, 0 vols., Singapore University Press, 2005, pp. 147–182.
 
-<a id="3">[3]</a> R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for online inference," Preprint series. Statistical Research Report, 2013.
+<a id="3">[3]</a> N. Chopin, “A sequential particle filter method for static models,” Biometrika 89.3, 2000, pp. 539-552.
+
+<a id="4">[4]</a> R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for online inference," Preprint series. Statistical Research Report, 2013.
