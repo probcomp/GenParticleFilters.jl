@@ -59,7 +59,7 @@ Performs residual resampling of the particles in the filter, which reduces
 variance relative to multinomial sampling. For each particle with
 normalized weight ``w_i``, ``⌊n w_i⌋`` copies are resampled, where ``n`` is the
 total number of particles. The remainder are sampled with probability
-proportional to each particle's original weight.
+proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``.
 """
 function pf_residual_resample!(state::ParticleFilterState)
     n_particles = length(state.traces)
@@ -77,9 +77,11 @@ function pf_residual_resample!(state::ParticleFilterState)
         end
         n_resampled += n_copies
     end
-    # Sample remainder at random
+    # Sample remainder according to weight remainders
     if n_resampled < n_particles
-        Distributions.rand!(Categorical(weights), state.parents[n_resampled+1:end])
+        r_weights = n_particles .* weights .- floor.(n_particles .* weights)
+        r_weights = r_weights ./ sum(r_weights)
+        Distributions.rand!(Categorical(r_weights), state.parents[n_resampled+1:end])
         state.new_traces[n_resampled+1:end] =
             state.traces[state.parents[n_resampled+1:end]]
     end
