@@ -99,7 +99,7 @@ new_traces = get_traces(state)
 # Test that at least the minimum number of copies are resampled
 state = pf_initialize(line_model, (10,), generate_line(10), 100)
 old_traces = get_traces(state)
-weights = exp.(get_log_norm_weights(state))
+weights = get_norm_weights(state)
 min_copies = floor.(Int, weights * 100)
 state = pf_residual_resample!(state)
 new_traces = get_traces(state)
@@ -108,11 +108,11 @@ copies = [sum([t1 == t2 for t1 in new_traces]) for t2 in old_traces]
 @test all(copies .>= min_copies)
 
 # Same test but with a custom priority function
-p_fn = w -> w ^ 0.5
+p_fn = w -> w / 2
 state = pf_initialize(line_model, (10,), generate_line(10), 100)
 old_traces = get_traces(state)
-weights = p_fn.(exp.(get_log_norm_weights(state)))
-weights ./= sum(weights)
+log_priorities = p_fn.(get_log_weights(state))
+weights = exp.(log_priorities .- logsumexp(log_priorities))
 min_copies = floor.(Int, weights * 100)
 state = pf_residual_resample!(state; priority_fn=p_fn)
 new_traces = get_traces(state)
@@ -132,7 +132,7 @@ new_traces = get_traces(state)
 # Test that the highest weight particle has the right number of copies
 state = pf_initialize(line_model, (10,), generate_line(10), 100)
 old_traces = get_traces(state)
-weights = exp.(get_log_norm_weights(state))
+weights = get_norm_weights(state)
 max_weight, max_idx = findmax(weights)
 min_copies = floor.(Int, max_weight * 100)
 state = pf_stratified_resample!(state; sort_particles=true)
@@ -142,11 +142,11 @@ copies = sum([tr == old_traces[max_idx] for tr in new_traces])
 @test copies >= min_copies
 
 # Same test but with a custom priority function
-p_fn = w -> w ^ 0.5
+p_fn = w -> w / 2
 state = pf_initialize(line_model, (10,), generate_line(10), 100)
 old_traces = get_traces(state)
-weights = p_fn.(exp.(get_log_norm_weights(state)))
-weights ./= sum(weights)
+log_priorities = p_fn.(get_log_weights(state))
+weights = exp.(log_priorities .- logsumexp(log_priorities))
 max_weight, max_idx = findmax(weights)
 min_copies = floor.(Int, max_weight * 100)
 state = pf_stratified_resample!(state; sort_particles=true, priority_fn=p_fn)

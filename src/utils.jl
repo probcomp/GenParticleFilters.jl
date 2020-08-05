@@ -6,7 +6,7 @@ export mean, var
 using Gen: effective_sample_size
 using Statistics
 
-normalize(v::AbstractVector) = v ./ sum(v)
+lognorm(v::AbstractVector) = v .- logsumexp(v)
 
 """
     get_log_norm_weights(state::ParticleFilterState)
@@ -14,8 +14,7 @@ normalize(v::AbstractVector) = v ./ sum(v)
 Return the vector of normalized log weights for the current state,
 one for each particle.
 """
-get_log_norm_weights(state::ParticleFilterState) =
-    state.log_weights .- logsumexp(state.log_weights)
+get_log_norm_weights(state::ParticleFilterState) = lognorm(state.log_weights)
 
 """
     get_norm_weights(state::ParticleFilterState)
@@ -23,8 +22,7 @@ get_log_norm_weights(state::ParticleFilterState) =
 Return the vector of normalized weights for the current state,
 one for each particle.
 """
-get_norm_weights(state::ParticleFilterState) =
-    exp.(get_log_norm_weights(state))
+get_norm_weights(state::ParticleFilterState) = exp.(get_log_norm_weights(state))
 
 """
     effective_sample_size(state::ParticleFilterState)
