@@ -1,6 +1,6 @@
 # GenParticleFilters.jl
 
-Building blocks for simple and advanced particle filtering in Gen.
+Building blocks for simple and advanced particle filtering in [Gen](https://www.gen.dev/), a general-purpose probabilistic programming system.
 
 ## Installation
 
