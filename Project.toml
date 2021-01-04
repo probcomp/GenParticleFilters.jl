@@ -1,7 +1,7 @@
 name = "GenParticleFilters"
 uuid = "56b76ac4-72ef-411e-b419-6d312ed86a6f"
 authors = ["Xuan <tanqazx@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -11,7 +11,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 [compat]
 julia = "1"
 Distributions = "0.21, 0.22, 0.23"
-Gen = "0.3"
+Gen = "0.3, 0.4"
 
 [extras]
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
