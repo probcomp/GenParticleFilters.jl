@@ -1,10 +1,18 @@
 # GenParticleFilters.jl
 
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/probcomp/GenParticleFilters.jl)
+![License](https://img.shields.io/github/license/probcomp/GenParticleFilters.jl?color=lightgrey)
+
 Building blocks for simple and advanced particle filtering in [Gen](https://www.gen.dev/), a general-purpose probabilistic programming system.
 
 ## Installation
 
 Press `]` at the Julia REPL to enter the package manager, then run:
+```julia
+add GenParticleFilters
+```
+
+To install the development version, run:
 ```julia
 add https://github.com/probcomp/GenParticleFilters.jl.git
 ```
@@ -14,7 +22,7 @@ add https://github.com/probcomp/GenParticleFilters.jl.git
 In addition to basic particle filtering functionality (i.e., initializing a particle filter and updating it with new observations), this package provides support for:
 
 - Particle updates that allow discarding of old choices, provided that
-backward kernels are provided [[1]](#1)
+backward kernels are specified [[1]](#1)
 - Multiple resampling methods, including variance-reducing methods such as residual resampling [[2]](#2)
 - Custom priority weights for resampling, to control the aggressiveness of pruning [[3]](#3)
 - Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity [[4]](#4)
