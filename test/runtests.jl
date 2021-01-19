@@ -75,6 +75,18 @@ state = pf_update!(state, (10,), (UnknownChange(),), generate_line(10),
 @test all([w != 0 for w in get_log_weights(state)])
 end
 
+@gen outlier_reverse(tr, idxs) =
+    [{:line => i => :outlier} ~ bernoulli(0.1) for i in idxs]
+
+@testset "Update with custom forward and backward proposals" begin
+state = pf_initialize(line_model, (10,), generate_line(10), 100)
+state = pf_update!(state, (10,), (UnknownChange(),), choicemap(),
+                   outlier_propose, (10,), outlier_reverse, (10,))
+@test all([tr[:line => 10 => :y] == 0 for tr in get_traces(state)])
+@test all([tr[:line => 10 => :outlier] == false for tr in get_traces(state)])
+@test all([w != 0 for w in get_log_weights(state)])
+end
+
 end
 
 @testset "Particle resampling" begin

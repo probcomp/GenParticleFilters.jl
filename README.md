@@ -13,10 +13,12 @@ add https://github.com/probcomp/GenParticleFilters.jl.git
 
 In addition to basic particle filtering functionality (i.e., initializing a particle filter and updating it with new observations), this package provides support for:
 
-- Multiple resampling methods, including variance-reducing methods such as residual resampling [[1]](#1)
-- Custom priority weights for resampling, to control the aggressiveness of pruning [[2]](#2)
-- Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity [[3]](#3)
-- Move-reweight rejuvenation, which increases particle diversity while reweighting particles [[4]](#4)
+- Particle updates that allow discarding of old choices, provided that
+backward kernels are provided [[1]](#1)
+- Multiple resampling methods, including variance-reducing methods such as residual resampling [[2]](#2)
+- Custom priority weights for resampling, to control the aggressiveness of pruning [[3]](#3)
+- Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity [[4]](#4)
+- Move-reweight rejuvenation, which increases particle diversity while reweighting particles [[5]](#5)
 - Utility functions to compute distributional statistics (e.g. mean and variance) for the inferred latent variables
 
 ## Example
@@ -52,7 +54,7 @@ function particle_filter(observations, n_particles, ess_thresh=0.5)
         if effective_sample_size(state) < ess_thresh * n_particles
             # Perform residual resampling, pruning low-weight particles
             pf_resample!(state, :residual)
-            # Perform a Gibbs rejuvenation move on past choices
+            # Perform a rejuvenation move on past choices
             rejuv_sel = select(t-1=>:moving, t-1=>:y, t=>:moving, t=>:y)
             pf_rejuvenate!(state, mh, (rejuv_sel,))
         end
@@ -92,10 +94,12 @@ We see that the filter accurately infers a change in motion from `t=5` to `t=6`.
 
 ## References
 
-<a id="1">[1]</a> R. Douc and O. Cappé, "Comparison of resampling schemes for particle filtering," in ISPA 2005. Proceedings of the 4th International Symposium on Image and Signal Processing and Analysis, 2005., 2005, pp. 64-69.
+<a id="1">[1]</a> P. D. Moral, A. Doucet, and A. Jasra, “Sequential Monte Carlo samplers,” Journal of the Royal Statistical Society: Series B (Statistical Methodology), vol. 68, no. 3, pp. 411–436, 2006.
 
-<a id="2">[2]</a> R. Chen, “Sequential Monte Carlo methods and their applications,” in Markov Chain Monte Carlo, vol. Volume 7, 0 vols., Singapore University Press, 2005, pp. 147–182.
+<a id="2">[2]</a> R. Douc and O. Cappé, "Comparison of resampling schemes for particle filtering," in ISPA 2005. Proceedings of the 4th International Symposium on Image and Signal Processing and Analysis, 2005., 2005, pp. 64-69.
 
-<a id="3">[3]</a> N. Chopin, “A sequential particle filter method for static models,” Biometrika 89.3, 2000, pp. 539-552.
+<a id="3">[3]</a> R. Chen, “Sequential Monte Carlo methods and their applications,” in Markov Chain Monte Carlo, vol. Volume 7, 0 vols., Singapore University Press, 2005, pp. 147–182.
 
-<a id="4">[4]</a> R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for online inference," Preprint series. Statistical Research Report, 2013.
+<a id="4">[4]</a> N. Chopin, “A sequential particle filter method for static models,” Biometrika 89.3, 2000, pp. 539-552.
+
+<a id="5">[5]</a> R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for online inference," Preprint series. Statistical Research Report, 2013.
