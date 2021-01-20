@@ -148,14 +148,17 @@ function pf_stratified_resample!(state::ParticleFilterState;
         state.log_weights : priority_fn.(state.log_weights)
     weights = exp.(lognorm(log_priorities))
     # Optionally sort particles by weight before resampling
-    order = sort_particles ? sortperm(log_priorities) : collect(1:n_particles)
+    order = sort_particles ?
+        sortperm(log_priorities, rev=true) : collect(1:n_particles)
     # Sample particles within each weight stratum [i, i+1/n)
-    i_old, accum_weight = 0, 0.0
-    for (i_new, lower) in enumerate((0:n_particles-1)/n_particles)
-        u = rand() * (1/n_particles) + lower
-        while accum_weight < u
-            accum_weight += weights[order[i_old+1]]
-            i_old += 1
+    i_old, weight_step, accum_weight = 0, 1/n_particles, 0.0
+    for (i_new, lower) in enumerate(0.0:weight_step:1.0-weight_step)
+        if lower + weight_step > accum_weight
+            u = rand() * weight_step + lower
+            while accum_weight < u
+                accum_weight += weights[order[i_old+1]]
+                i_old += 1
+            end
         end
         state.parents[i_new] = order[i_old]
         state.new_traces[i_new] = state.traces[order[i_old]]
