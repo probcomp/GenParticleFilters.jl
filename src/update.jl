@@ -99,9 +99,10 @@ The choicemap of `t_new` and `disc_choices` satisfy the following conditions:
 3. `get_choices(t_fwd)` is a subset of `get_choices(t_new)`.
 4. `disc_choices` is  within the support of `bwd_proposal`
 
-For valid posterior inference, note that `fwd_proposal` should not cause any
-previously provided observations to be discarded, (i.e., `disc_choices` should
-not contain any `observations` given in previous calls to `pf_update!`).
+For valid posterior inference conditioned on prior observations, note that
+`fwd_proposal` should not cause any of those observations to be discarded,
+(i.e., `disc_choices` should not contain any `observations` given in previous
+calls to `pf_update!`).
 
 Similar functionality is provided by [`move_reweight`](@ref), except that
 `pf_update!` also allows model arguments to be updated.
