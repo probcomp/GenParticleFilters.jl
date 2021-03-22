@@ -60,10 +60,7 @@ function pf_multinomial_resample!(state::ParticleFilterState;
         ws = state.log_weights[state.parents] .- log_priorities[state.parents]
         state.log_weights = ws .+ (log(n_particles) - logsumexp(ws))
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end
 
@@ -115,10 +112,7 @@ function pf_residual_resample!(state::ParticleFilterState;
         ws = state.log_weights[state.parents] .- log_priorities[state.parents]
         state.log_weights = ws .+ (log(n_particles) - logsumexp(ws))
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end
 
@@ -170,9 +164,6 @@ function pf_stratified_resample!(state::ParticleFilterState;
         ws = state.log_weights[state.parents] .- log_priorities[state.parents]
         state.log_weights = ws .+ (log(n_particles) - logsumexp(ws))
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end

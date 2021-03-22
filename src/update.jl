@@ -9,7 +9,7 @@ Perform a particle filter update, where the model arguments are adjusted and
 new observations are conditioned upon. New latent choices are sampled from
 the model's default proposal.
 """
-function pf_update!(state::ParticleFilterState, new_args::Tuple,
+function pf_update!(state::ParticleFilterView, new_args::Tuple,
                     argdiffs::Tuple, observations::ChoiceMap)
     n_particles = length(state.traces)
     for i=1:n_particles
@@ -20,10 +20,7 @@ function pf_update!(state::ParticleFilterState, new_args::Tuple,
         end
         state.log_weights[i] += increment
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end
 
@@ -51,7 +48,7 @@ that occur in `a` also occur in `b`, and the values at those addresses are
 equal. It is an error if no trace `t_new` satisfying the above conditions
 exists in the support of the model (with the new arguments).
 """
-function pf_update!(state::ParticleFilterState, new_args::Tuple,
+function pf_update!(state::ParticleFilterView, new_args::Tuple,
                     argdiffs::Tuple, observations::ChoiceMap,
                     proposal::GenerativeFunction, proposal_args::Tuple)
     n_particles = length(state.traces)
@@ -66,10 +63,7 @@ function pf_update!(state::ParticleFilterState, new_args::Tuple,
         end
         state.log_weights[i] += up_weight - prop_weight
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end
 
@@ -107,7 +101,7 @@ calls to `pf_update!`).
 Similar functionality is provided by [`move_reweight`](@ref), except that
 `pf_update!` also allows model arguments to be updated.
 """
-function pf_update!(state::ParticleFilterState, new_args::Tuple,
+function pf_update!(state::ParticleFilterView, new_args::Tuple,
                     argdiffs::Tuple, observations::ChoiceMap,
                     fwd_proposal::GenerativeFunction, fwd_args::Tuple,
                     bwd_proposal::GenerativeFunction, bwd_args::Tuple)
@@ -122,9 +116,6 @@ function pf_update!(state::ParticleFilterState, new_args::Tuple,
             assess(bwd_proposal, (state.new_traces[i], bwd_args...), discard)
         state.log_weights[i] += up_weight - fwd_weight + bwd_weight
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end

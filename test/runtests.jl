@@ -87,6 +87,18 @@ state = pf_update!(state, (10,), (UnknownChange(),), choicemap(),
 @test all([w != 0 for w in get_log_weights(state)])
 end
 
+@testset "Update with different proposals per view" begin
+state = pf_initialize(line_model, (0,), choicemap(), 100)
+substate = pf_update!(state[1:50], (10,), (UnknownChange(),), generate_line(10))
+@test all([tr[:line => 10 => :y] == 0 for tr in get_traces(substate)])
+@test all([w != 0 for w in get_log_weights(substate)])
+substate = pf_update!(state[51:end], (10,), (UnknownChange(),),
+                      generate_line(10), outlier_propose, (10,))
+@test all([tr[:line => 10 => :y] == 0 for tr in get_traces(substate)])
+@test all([tr[:line => 10 => :outlier] == false for tr in get_traces(substate)])
+@test all([w != 0 for w in get_log_weights(state)])
+end
+
 end
 
 @testset "Particle resampling" begin
@@ -238,6 +250,38 @@ rel_weights = parse.(Float64, rel_weights)
 
 # Check that weights are adjusted accordingly
 @test all(isapprox.(new_weights, old_weights .+ rel_weights; atol=1e-3))
+end
+
+@testset "Rejuvenation on separate views" begin
+# Log which particles were rejuvenated
+buffer = IOBuffer()
+logger = SimpleLogger(buffer, Logging.Debug)
+state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
+old_traces = get_traces(state)[1:50]
+old_weights = get_log_weights(state)[51:end]
+
+with_logger(logger) do
+    pf_move_accept!(state[1:50], metropolis_hastings, (select(:slope),), 1)
+    pf_move_reweight!(state[51:end], move_reweight, (select(:slope),), 1)
+end
+
+# Extract acceptances and relative weights from debug log
+lines = split(String(take!(buffer)), "\n")
+a_lines = filter(s -> occursin("Accepted: ", s), lines)
+accepts = [match(r".*Accepted: (\w+).*", l).captures[1] for l in a_lines]
+accepts = parse.(Bool, accepts)
+r_lines = filter(s -> occursin("Rel. Weight: ", s), lines)
+rel_weights = [match(r".*Rel\. Weight: (.+)\s*", l).captures[1] for l in r_lines]
+rel_weights = parse.(Float64, rel_weights)
+
+# Check that only traces that were accepted are rejuvenated
+new_traces = get_traces(state)[1:50]
+@test all(a ? t1 !== t2 : t1 === t2
+          for (a, t1, t2) in zip(accepts, old_traces, new_traces))
+# Check that weights are adjusted accordingly
+new_weights = get_log_weights(state)[51:end]
+@test all(isapprox.(new_weights, old_weights .+ rel_weights; atol=1e-3))
+
 end
 
 end

@@ -12,7 +12,7 @@ a tuple with a trace as the first return value. `method` specifies the
 rejuvenation method: `:move` for MCMC moves without a reweighting step,
 and `:reweight` for rejuvenation with a reweighting step.
 """
-function pf_rejuvenate!(state::ParticleFilterState, kern, kern_args::Tuple=(),
+function pf_rejuvenate!(state::ParticleFilterView, kern, kern_args::Tuple=(),
                         n_iters::Int=1; method::Symbol=:move)
     if method == :move
         return pf_move_accept!(state, kern, kern_args, n_iters)
@@ -34,7 +34,7 @@ a tuple `(trace, accept)`, where `trace` is the (potentially) new trace, and
 can be supplied with `kern_args`. The kernel is repeatedly applied to each trace
 for `n_iters`.
 """
-function pf_move_accept!(state::ParticleFilterState,
+function pf_move_accept!(state::ParticleFilterView,
                          kern, kern_args::Tuple=(), n_iters::Int=1)
     # Potentially rejuvenate each trace
     for (i, trace) in enumerate(state.traces)
@@ -44,10 +44,7 @@ function pf_move_accept!(state::ParticleFilterState,
         end
         state.new_traces[i] = trace
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end
 
@@ -66,7 +63,7 @@ accumulated accordingly.
 [1] R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for
 online inference," Preprint series. Statistical Research Report, 2013.
 """
-function pf_move_reweight!(state::ParticleFilterState,
+function pf_move_reweight!(state::ParticleFilterView,
                            kern, kern_args::Tuple=(), n_iters::Int=1)
     # Move and reweight each trace
     for (i, trace) in enumerate(state.traces)
@@ -79,10 +76,7 @@ function pf_move_reweight!(state::ParticleFilterState,
         state.new_traces[i] = trace
         state.log_weights[i] += weight
     end
-    # Swap references
-    tmp = state.traces
-    state.traces = state.new_traces
-    state.new_traces = tmp
+    update_refs!(state)
     return state
 end
 
