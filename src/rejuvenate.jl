@@ -58,7 +58,9 @@ trace as its first argument, and returns a tuple `(trace, rel_weight)`,
 where `trace` is the new trace, and `rel_weight` is the relative log-importance
 weight. Subsequent arguments to `kern` can be supplied with `kern_args`.
 The kernel is repeatedly applied to each trace for `n_iters`, and the weights
-accumulated accordingly.
+accumulated accordingly. Both the [`move_reweight`](@ref) function and
+[symmetric trace translators](https://www.gen.dev/stable/ref/trace_translators/)
+can serve as reweighting kernels. 
 
 [1] R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for
 online inference," Preprint series. Statistical Research Report, 2013.
