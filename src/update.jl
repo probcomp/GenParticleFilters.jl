@@ -97,7 +97,7 @@ function pf_update!(state::ParticleFilterView, new_args::Tuple,
     n_particles = length(state.traces)
     translator = GenParticleFilters.ExtendingTraceTranslator(
         p_new_args=new_args, p_argdiffs=argdiffs, new_observations=observations,
-        q_forward=proposal, q_forward_args=proposal_args, f=transform)
+        q_forward=proposal, q_forward_args=proposal_args, transform=transform)
     return pf_update!(state, translator)
 end
 
@@ -169,6 +169,6 @@ function pf_update!(state::ParticleFilterView, new_args::Tuple,
     translator = GenParticleFilters.UpdatingTraceTranslator(
         p_new_args=new_args, p_argdiffs=argdiffs, new_observations=observations,
         q_forward=fwd_proposal, q_forward_args=fwd_args,
-        q_backward=bwd_proposal, q_backward_args=bwd_args, f=transform)
+        q_backward=bwd_proposal, q_backward_args=bwd_args, transform=transform)
     return pf_update!(state, translator; check=check)
 end
