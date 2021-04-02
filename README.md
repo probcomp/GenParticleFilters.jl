@@ -28,6 +28,7 @@ backward kernels are specified [[1]](#1)
 - Custom priority weights for resampling, to control the aggressiveness of pruning [[3]](#3)
 - Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity [[4]](#4)
 - Move-reweight rejuvenation, which increases particle diversity while reweighting particles [[5]](#5)
+- Sequential Monte Carlo over a series of distinct models, via [trace translators](https://www.gen.dev/stable/ref/trace_translators/) [[6]](#6)
 - Utility functions to compute distributional statistics (e.g. mean and variance) for the inferred latent variables
 
 ## Example
@@ -112,3 +113,5 @@ We see that the filter accurately infers a change in motion from `t=5` to `t=6`.
 <a id="4">[4]</a> N. Chopin, “A sequential particle filter method for static models,” Biometrika 89.3, 2000, pp. 539-552.
 
 <a id="5">[5]</a> R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for online inference," Preprint series. Statistical Research Report, 2013.
+
+<a id="6">[6]</a> M. Cusumano-Towner, B. Bichsel, T. Gehr, M. Vechev, and V. K. Mansinghka, “Incremental inference for probabilistic programs,” in Proceedings of the 39th ACM SIGPLAN Conference on Programming Language Design and Implementation, Philadelphia PA USA, Jun. 2018, pp. 571–585.
