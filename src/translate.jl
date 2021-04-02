@@ -1,11 +1,4 @@
-using Gen: jacobian_correction, check_round_trip
-
-# Monkey patch for bug in Gen.run_first_pass
-function run_first_pass(transform::TraceTransformDSLProgram, model_trace)
-    state = Gen.FirstPassState(model_trace, model_trace)
-    transform.fn!(state)
-    return state.results
-end
+using Gen: run_first_pass, jacobian_correction, check_round_trip, run_transform
 
 ##################################
 # ExtendingTraceTranslator #
@@ -23,7 +16,7 @@ Constructor for a extending trace translator.
 Run the translator with:
     (output_trace, log_weight) = translator(input_trace)
 """
-@with_kw mutable struct ExtendingTraceTranslator
+@with_kw mutable struct ExtendingTraceTranslator <: TraceTranslator
     p_new_args::Tuple = ()
     p_argdiffs::Tuple = ()
     new_observations::ChoiceMap = EmptyChoiceMap()
@@ -42,13 +35,13 @@ function (translator::ExtendingTraceTranslator)(prev_model_trace::Trace)
     # transform forward proposal
     if translator.f === nothing
         constraints = get_choices(forward_proposal_trace)
+        log_abs_determinant = 0.0
     else
         first_pass_results =
-            run_first_pass(translator.f, forward_proposal_trace)
-        # TODO: adjust after fixing bugs in Gen
+            run_first_pass(translator.f, forward_proposal_trace, nothing)
         log_abs_determinant =
             jacobian_correction(translator.f, forward_proposal_trace,
-                forward_proposal_trace, first_pass_results, nothing)
+                                nothing, first_pass_results, nothing)
         constraints = first_pass_results.constraints
     end
 
@@ -96,7 +89,7 @@ has been paired with its inverse using `pair_bijections! or `is_involution!`).
 If `check` is enabled, then `prev_observations` is a choice map containing
 the observed random choices in the previous trace.
 """
-@with_kw mutable struct UpdatingTraceTranslator
+@with_kw mutable struct UpdatingTraceTranslator <: TraceTranslator
     p_new_args::Tuple = ()
     p_argdiffs::Tuple = ()
     new_observations::ChoiceMap = EmptyChoiceMap()
@@ -107,11 +100,20 @@ the observed random choices in the previous trace.
     f::TraceTransformDSLProgram
 end
 
-function updating_trace_translator_run_transform(
-        f::TraceTransformDSLProgram, new_observations::ChoiceMap,
-        prev_model_trace::Trace, forward_proposal_trace::Trace,
-        p_new_args::Tuple, p_argdiffs::Tuple,
-        q_backward::GenerativeFunction, q_backward_args::Tuple)
+function Gen.inverse(translator::UpdatingTraceTranslator, prev_model_trace::Trace,
+                     prev_observations::ChoiceMap=EmptyChoiceMap())
+    return UpdatingTraceTranslator(
+        get_args(prev_model_trace), map((_)->UnknownChange(), get_args(prev_model_trace)),
+        prev_observations, translator.q_backward, translator.q_backward_args,
+        translator.q_forward, translator.q_forward_args,
+        inverse(translator.f))
+end
+
+function Gen.run_transform(translator::UpdatingTraceTranslator,
+                           prev_model_trace::Trace, forward_proposal_trace::Trace,
+                           check::Bool=false)
+    @unpack f, new_observations = translator
+    @unpack p_new_args, p_argdiffs, q_backward, q_backward_args = translator
     first_pass_results =
         Gen.run_first_pass(f, prev_model_trace, forward_proposal_trace)
     constraints = merge(first_pass_results.constraints, new_observations)
@@ -133,11 +135,7 @@ function (translator::UpdatingTraceTranslator)(
 
     # apply trace transform
     (new_model_trace, backward_proposal_trace, log_abs_determinant) =
-        updating_trace_translator_run_transform(
-            translator.f, translator.new_observations,
-            prev_model_trace, forward_proposal_trace,
-            translator.p_new_args, translator.p_argdiffs,
-            translator.q_backward, translator.q_backward_args)
+        run_transform(translator, prev_model_trace, forward_proposal_trace, check)
 
     # compute log weight
     prev_model_score = get_score(prev_model_trace)
@@ -148,18 +146,12 @@ function (translator::UpdatingTraceTranslator)(
         backward_proposal_score + forward_proposal_score + log_abs_determinant
 
     if check
-        forward_proposal_choices = get_choices(forward_proposal_trace)
-        f_inv = inverse(translator.f)
+        inverter = inverse(translator, prev_model_trace, prev_observations)
         argdiffs = map((_) -> UnknownChange(), get_args(prev_model_trace))
         (prev_model_trace_rt, forward_proposal_trace_rt, _) =
-            updating_trace_translator_run_transform(
-                inverse(translator.f), prev_observations,
-                new_model_trace, backward_proposal_trace,
-                get_args(prev_model_trace), argdiffs,
-                translator.q_forward, translator.q_forward_args)
-        check_round_trip(
-            prev_model_trace, prev_model_trace_rt,
-            forward_proposal_trace, forward_proposal_trace_rt)
+            run_transform(inverter, new_model_trace, backward_proposal_trace, check)
+        check_round_trip(prev_model_trace, prev_model_trace_rt,
+                         forward_proposal_trace, forward_proposal_trace_rt)
     end
 
     return (new_model_trace, log_weight)
