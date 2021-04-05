@@ -109,7 +109,7 @@ end
                [transform::TraceTransformDSLProgram, check::Bool=false])
 
 Perform a particle filter update, with a custom forward and backward kernel.
-New latent choices are sampled from 'fwd_proposal', and any discarded choices
+New latent choices are sampled from `fwd_proposal`, and any discarded choices
 are evaluated under `bwd_proposal`. For each particle:
 * `fwd_proposal` is evaluated with arguments `(t_old, fwd_args...)`,
    where `t_old` is the old model trace, and produces its own trace `t_fwd`.
