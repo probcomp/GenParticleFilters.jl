@@ -1,6 +1,6 @@
 # GenParticleFilters.jl
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/probcomp/GenParticleFilters.jl/CI)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/probcomp/GenParticleFilters.jl/CI.yml?branch=master)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/probcomp/GenParticleFilters.jl)
 ![License](https://img.shields.io/github/license/probcomp/GenParticleFilters.jl?color=lightgrey)
 
