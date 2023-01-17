@@ -246,19 +246,21 @@ trace, _ = generate(line_model, (1,), observations)
 slope, outlier = trace[:slope], trace[out_addr]
 
 # Test selection variant
-expected_w(out_old, out_new, slope) =
+expected_w = (out_old, out_new, slope) -> begin
     logpdf(normal, 0, slope, out_new ? 10. : 1.) -
     logpdf(normal, 0, slope, out_old ? 10. : 1.)
+end
 trs_ws = [move_reweight(trace, select(out_addr)) for i in 1:100]
 @test all(w ≈ expected_w(outlier, tr[out_addr], slope) for (tr, w) in trs_ws)
 
 # Test proposal variant
-expected_w(out_old, out_new, slope) =
+expected_w = (out_old, out_new, slope) -> begin 
     logpdf(bernoulli, out_new, 0.1) - logpdf(bernoulli, out_old, 0.1) +
     logpdf(normal, 0, slope, out_new ? 10. : 1.) -
     logpdf(normal, 0, slope, out_old ? 10. : 1.) +
     (out_old == out_new ? 0.0 :
         logpdf(bernoulli, out_old, 0.9) - logpdf(bernoulli, out_old, 0.1))
+end
 @gen outlier_propose(tr, idx) = {:line => idx => :outlier} ~ bernoulli(0.9)
 trs_ws = [move_reweight(trace, outlier_propose, (1,)) for i in 1:100]
 @test all(w ≈ expected_w(outlier, tr[out_addr], slope) for (tr, w) in trs_ws)
@@ -271,7 +273,7 @@ logger = SimpleLogger(buffer, Logging.Debug)
 state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
 old_traces = get_traces(state)
 with_logger(logger) do
-    pf_move_accept!(state, metropolis_hastings, (select(:slope),), 1)
+    pf_move_accept!(state, mh, (select(:slope),), 1; check=false)
 end
 
 # Extract acceptances from debug log
@@ -293,7 +295,7 @@ logger = SimpleLogger(buffer, Logging.Debug)
 state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
 old_weights = copy(get_log_weights(state))
 with_logger(logger) do
-    pf_move_reweight!(state, move_reweight, (select(:slope),), 1)
+    pf_move_reweight!(state, move_reweight, (select(:slope),), 1; check=false)
 end
 new_weights = copy(get_log_weights(state))
 
@@ -315,9 +317,10 @@ state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
 old_traces = get_traces(state)[1:50]
 old_weights = get_log_weights(state)[51:end]
 
+kern_args = (select(:slope),)
 with_logger(logger) do
-    pf_move_accept!(state[1:50], metropolis_hastings, (select(:slope),), 1)
-    pf_move_reweight!(state[51:end], move_reweight, (select(:slope),), 1)
+    pf_rejuvenate!(state[1:50], mh, kern_args, 1; method=:move)
+    pf_rejuvenate!(state[51:end], move_reweight, kern_args, 1; method=:reweight)
 end
 
 # Extract acceptances and relative weights from debug log
