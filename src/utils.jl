@@ -1,10 +1,8 @@
 ## Various utility functions ##
 export get_log_norm_weights, get_norm_weights
 export effective_sample_size, get_ess
-export mean, var
 
 using Gen: effective_sample_size
-using Statistics
 
 @inline function update_refs!(state::ParticleFilterState)
     # Swap references
@@ -49,29 +47,3 @@ Gen.effective_sample_size(state::ParticleFilterView) =
 Alias for `effective_sample_size`(@ref). Computes the effective sample size.
 """
 get_ess(state::ParticleFilterView) = Gen.effective_sample_size(state)
-
-"""
-    mean(state::ParticleFilterState[, addr])
-
-Returns the weighted empirical mean for a particular trace address `addr`.
-If `addr` is not provided, returns the empirical mean of the return value.
-"""
-Statistics.mean(state::ParticleFilterView, addr) =
-    sum(get_norm_weights(state) .* getindex.(state.traces, addr))
-
-Statistics.mean(state::ParticleFilterView) =
-    sum(get_norm_weights(state) .* get_retval.(state.traces))
-
-"""
-    var(state::ParticleFilterState[, addr])
-
-Returns the empirical variance for a particular trace address `addr`.
-If `addr` is not provided, returns the empirical variance of the return value.
-"""
-Statistics.var(state::ParticleFilterView, addr) =
-    sum(get_norm_weights(state) .*
-        (getindex.(state.traces, addr) .- mean(state, addr)).^2)
-
-Statistics.var(state::ParticleFilterView) =
-    sum(get_norm_weights(state) .*
-        (get_retval.(state.traces) .- mean(state)).^2)
