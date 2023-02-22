@@ -48,13 +48,13 @@ function pf_multinomial_resample!(state::ParticleFilterState;
     n_particles = length(state.traces)
     state.log_ml_est += logsumexp(state.log_weights) - log(n_particles)
     # Compute priority scores if priority function is provided
-    log_priorities = priority_fn == nothing ?
+    log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
     # Resample new traces according to current normalized weights
     rand!(Categorical(exp.(lognorm(log_priorities))), state.parents)
     state.new_traces[1:end] = state.traces[state.parents]
     # Reweight particles
-    if priority_fn == nothing
+    if priority_fn === nothing
         state.log_weights .= 0.0
     else
         ws = state.log_weights[state.parents] .- log_priorities[state.parents]
@@ -83,7 +83,7 @@ function pf_residual_resample!(state::ParticleFilterState;
     n_particles = length(state.traces)
     state.log_ml_est += logsumexp(state.log_weights) - log(n_particles)
     # Compute priority scores if priority function is provided
-    log_priorities = priority_fn == nothing ?
+    log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
     # Deterministically copy previous particles according to their weights
     n_resampled = 0
@@ -106,7 +106,7 @@ function pf_residual_resample!(state::ParticleFilterState;
             state.traces[state.parents[n_resampled+1:end]]
     end
     # Reweight particles
-    if priority_fn == nothing
+    if priority_fn === nothing
         state.log_weights .= 0.0
     else
         ws = state.log_weights[state.parents] .- log_priorities[state.parents]
@@ -138,7 +138,7 @@ function pf_stratified_resample!(state::ParticleFilterState;
     n_particles = length(state.traces)
     state.log_ml_est += logsumexp(state.log_weights) - log(n_particles)
     # Compute priority scores if priority function is provided
-    log_priorities = priority_fn == nothing ?
+    log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
     weights = exp.(lognorm(log_priorities))
     # Optionally sort particles by weight before resampling
@@ -158,7 +158,7 @@ function pf_stratified_resample!(state::ParticleFilterState;
         state.new_traces[i_new] = state.traces[order[i_old]]
     end
     # Reweight particles
-    if priority_fn == nothing
+    if priority_fn === nothing
         state.log_weights .= 0.0
     else
         ws = state.log_weights[state.parents] .- log_priorities[state.parents]
