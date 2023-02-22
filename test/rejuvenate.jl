@@ -31,7 +31,7 @@ end
     # Log which particles were rejuvenated
     buffer = IOBuffer()
     logger = SimpleLogger(buffer, Logging.Debug)
-    state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10, 1.), 100)
     old_traces = get_traces(state)
     with_logger(logger) do
         pf_move_accept!(state, mh, (select(:slope),), 1; check=false)
@@ -53,7 +53,7 @@ end
     # Log which particles were rejuvenated
     buffer = IOBuffer()
     logger = SimpleLogger(buffer, Logging.Debug)
-    state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10, 1.), 100)
     old_weights = copy(get_log_weights(state))
     with_logger(logger) do
         pf_move_reweight!(state, move_reweight, (select(:slope),), 1; check=false)
@@ -74,7 +74,7 @@ end
     # Log which particles were rejuvenated
     buffer = IOBuffer()
     logger = SimpleLogger(buffer, Logging.Debug)
-    state = pf_initialize(line_model, (10,), generate_line(10, 1.), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10, 1.), 100)
     old_traces = get_traces(state)[1:50]
     old_weights = get_log_weights(state)[51:end]
 

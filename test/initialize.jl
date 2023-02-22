@@ -3,9 +3,9 @@
 @testset "Initialize with default proposal" begin
     state = pf_initialize(line_model, (0,), choicemap(), 100)
     @test all(-2 <= tr[:slope] <= 2 for tr in get_traces(state))
-    state = pf_initialize(line_model, (1,), generate_line(1), 100)
+    state = pf_initialize(line_model, (1,), line_choicemap(1), 100)
     @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state))
-    state = pf_initialize(line_model, (10,), generate_line(10), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     @test all(tr[:line => 10 => :y] == 0 for tr in get_traces(state))
 end
 

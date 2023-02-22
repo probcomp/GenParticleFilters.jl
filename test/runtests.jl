@@ -17,7 +17,7 @@ end
 
 @load_generated_functions()
 
-generate_line(n::Int, slope::Float64=0.) =
+line_choicemap(n::Int, slope::Float64=0.) =
     choicemap([(:line => i => :y, i*slope) for i in 1:n]...)
 
 include("utils.jl")

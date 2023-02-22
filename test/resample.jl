@@ -2,7 +2,7 @@
 
 @testset "Multinomial resampling" begin
     # Test that new traces have the correct parents
-    state = pf_initialize(line_model, (10,), generate_line(10), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
     state = pf_multinomial_resample!(state)
     new_traces = get_traces(state)
@@ -18,7 +18,7 @@ end
     @test new_traces == old_traces
 
     # Test that at least the minimum number of copies are resampled
-    state = pf_initialize(line_model, (10,), generate_line(10), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
     weights = get_norm_weights(state)
     min_copies = floor.(Int, weights * 100)
@@ -30,7 +30,7 @@ end
 
     # Same test but with a custom priority function
     p_fn = w -> w / 2
-    state = pf_initialize(line_model, (10,), generate_line(10), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
     log_priorities = p_fn.(get_log_weights(state))
     weights = exp.(log_priorities .- logsumexp(log_priorities))
@@ -51,7 +51,7 @@ end
     @test new_traces == old_traces
 
     # Test that the highest weight particle has the right number of copies
-    state = pf_initialize(line_model, (10,), generate_line(10), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
     weights = get_norm_weights(state)
     max_weight, max_idx = findmax(weights)
@@ -64,7 +64,7 @@ end
 
     # Same test but with a custom priority function
     p_fn = w -> w / 2
-    state = pf_initialize(line_model, (10,), generate_line(10), 100)
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
     log_priorities = p_fn.(get_log_weights(state))
     weights = exp.(log_priorities .- logsumexp(log_priorities))
