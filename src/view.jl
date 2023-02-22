@@ -1,4 +1,5 @@
-struct ParticleFilterSubState{U,I,L}
+struct ParticleFilterSubState{U,S,I,L}
+    source::S
     traces::SubArray{U,1,Vector{U},I,L}
     new_traces::SubArray{U,1,Vector{U},I,L}
     log_weights::SubArray{Float64,1,Vector{Float64},I,L}
@@ -14,7 +15,8 @@ const ParticleFilterView{U} =
 function Base.view(state::ParticleFilterState{U},
                    indices::AbstractVector) where {U}
     L = Base.viewindexing((indices,)) == IndexLinear()
-    return ParticleFilterSubState{U,Tuple{typeof(indices)},L}(
+    return ParticleFilterSubState{U,typeof(state),Tuple{typeof(indices)},L}(
+        state,
         view(state.traces, indices),
         view(state.new_traces, indices),
         view(state.log_weights, indices),

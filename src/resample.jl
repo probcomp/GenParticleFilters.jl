@@ -10,15 +10,17 @@ using Distributions: rand!
 Resamples particles in the filter, stochastically pruning low-weight particles.
 The resampling method can optionally be specified: `:multinomial` (default),
 `:residual`, or `:stratified`. See [1] for a survey of resampling methods
-and their variance properties. A `priority_fn` can also be specified as
-keyword argument, which maps log particle weights to custom log priority scores
-for the purpose of resampling (e.g. `w -> w/2` for less aggressive pruning).
+and their variance properties.
+
+A `priority_fn` can also be specified as a keyword argument, which maps log
+particle weights to custom log priority scores for the purpose of resampling
+(e.g. `w -> w/2` for less aggressive pruning).
 
 [1] R. Douc and O. Cappé, "Comparison of resampling schemes
 for particle filtering," in ISPA 2005. Proceedings of the 4th International
 Symposium on Image and Signal Processing and Analysis, 2005., 2005, pp. 64–69.
 """
-function pf_resample!(state::ParticleFilterState,
+function pf_resample!(state::ParticleFilterView,
                       method::Symbol=:multinomial; kwargs...)
     if method == :multinomial
         return pf_multinomial_resample!(state; kwargs...)
@@ -38,28 +40,23 @@ Performs multinomial resampling (i.e. simple random resampling) of the
 particles in the filter. Each trace (i.e. particle) is resampled with
 probability proportional to its weight.
 
-A `priority_fn` can be specified as keyword argument, which maps log particle
+A `priority_fn` can be specified as a keyword argument, which maps log particle
 weights to custom log priority scores for the purpose of resampling
 (e.g. `w -> w/2` for less aggressive pruning).
 """
-function pf_multinomial_resample!(state::ParticleFilterState;
+function pf_multinomial_resample!(state::ParticleFilterView;
                                   priority_fn=nothing)
     # Update estimate of log marginal likelihood
-    n_particles = length(state.traces)
-    state.log_ml_est += logsumexp(state.log_weights) - log(n_particles)
+    update_lml_est!(state)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
     # Resample new traces according to current normalized weights
-    rand!(Categorical(exp.(lognorm(log_priorities))), state.parents)
+    weights = softmax(log_priorities)
+    rand!(Categorical(weights), state.parents)
     state.new_traces[1:end] = state.traces[state.parents]
-    # Reweight particles
-    if priority_fn === nothing
-        state.log_weights .= 0.0
-    else
-        ws = state.log_weights[state.parents] .- log_priorities[state.parents]
-        state.log_weights = ws .+ (log(n_particles) - logsumexp(ws))
-    end
+    # Reweight particles and update trace references
+    update_weights!(state, log_priorities)
     update_refs!(state)
     return state
 end
@@ -73,21 +70,21 @@ normalized weight ``w_i``, ``⌊n w_i⌋`` copies are resampled, where ``n`` is 
 total number of particles. The remainder are sampled with probability
 proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``.
 
-A `priority_fn` can be specified as keyword argument, which maps log particle
+A `priority_fn` can be specified as a keyword argument, which maps log particle
 weights to custom log priority scores for the purpose of resampling
 (e.g. `w -> w/2` for less aggressive pruning).
 """
-function pf_residual_resample!(state::ParticleFilterState;
+function pf_residual_resample!(state::ParticleFilterView;
                                priority_fn=nothing)
     # Update estimate of log marginal likelihood
-    n_particles = length(state.traces)
-    state.log_ml_est += logsumexp(state.log_weights) - log(n_particles)
+    update_lml_est!(state)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
     # Deterministically copy previous particles according to their weights
     n_resampled = 0
-    weights = exp.(lognorm(log_priorities))
+    n_particles = length(state.traces)
+    weights = softmax(log_priorities)
     for (i, w) in enumerate(weights)
         n_copies = floor(Int, n_particles * w)
         if n_copies == 0 continue end
@@ -101,17 +98,13 @@ function pf_residual_resample!(state::ParticleFilterState;
     if n_resampled < n_particles
         r_weights = n_particles .* weights .- floor.(n_particles .* weights)
         r_weights = r_weights / sum(r_weights)
-        rand!(Categorical(r_weights), state.parents[n_resampled+1:end])
-        state.new_traces[n_resampled+1:end] =
-            state.traces[state.parents[n_resampled+1:end]]
+        r_idxs = n_resampled+1:n_particles
+        r_parents = view(state.parents, r_idxs)
+        rand!(Categorical(r_weights), r_parents)
+        state.new_traces[r_idxs] .= view(state.traces, r_parents)
     end
-    # Reweight particles
-    if priority_fn === nothing
-        state.log_weights .= 0.0
-    else
-        ws = state.log_weights[state.parents] .- log_priorities[state.parents]
-        state.log_weights = ws .+ (log(n_particles) - logsumexp(ws))
-    end
+    # Reweight particles and update trace references
+    update_weights!(state, log_priorities)
     update_refs!(state)
     return state
 end
@@ -126,22 +119,22 @@ where ``n`` is the number of particles. Then, given the cumulative normalized
 weights ``W_k = Σ_{j=1}^{k} w_j ``, sample the ``k``th particle for each ``u_i``
 where ``W_{k-1} ≤ u_i < W_k``.
 
-A `priority_fn` can be specified as keyword argument, which maps log particle
+A `priority_fn` can be specified as a keyword argument, which maps log particle
 weights to custom log priority scores for the purpose of resampling
 (e.g. `w -> w/2` for less aggressive pruning). The `sort_particles` keyword
 argument controls whether particles are sorted by weight before stratification
 (default: true).
 """
-function pf_stratified_resample!(state::ParticleFilterState;
+function pf_stratified_resample!(state::ParticleFilterView;
                                  priority_fn=nothing, sort_particles::Bool=true)
     # Update estimate of log marginal likelihood
-    n_particles = length(state.traces)
-    state.log_ml_est += logsumexp(state.log_weights) - log(n_particles)
+    update_lml_est!(state)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
-    weights = exp.(lognorm(log_priorities))
+    weights = softmax(log_priorities)
     # Optionally sort particles by weight before resampling
+    n_particles = length(state.traces)
     order = sort_particles ?
         sortperm(log_priorities, rev=true) : collect(1:n_particles)
     # Sample particles within each weight stratum [i, i+1/n)
@@ -157,13 +150,51 @@ function pf_stratified_resample!(state::ParticleFilterState;
         state.parents[i_new] = order[i_old]
         state.new_traces[i_new] = state.traces[order[i_old]]
     end
-    # Reweight particles
-    if priority_fn === nothing
-        state.log_weights .= 0.0
-    else
-        ws = state.log_weights[state.parents] .- log_priorities[state.parents]
-        state.log_weights = ws .+ (log(n_particles) - logsumexp(ws))
-    end
+    # Reweight particles and update trace references
+    update_weights!(state, log_priorities)
     update_refs!(state)
     return state
+end
+
+"Update log marginal likelihood estimate before a resampling step."
+function update_lml_est!(state::ParticleFilterState)
+    n_particles = length(state.traces)
+    state.log_ml_est += logsumexp(state.log_weights) - log(n_particles)
+    return nothing
+end
+
+# Do nothing for substates, since they don't separately track the estimate
+function update_lml_est!(state::ParticleFilterSubState)
+    return nothing
+end
+
+"Update particle weights after a resampling step."
+function update_weights!(state::ParticleFilterState, log_priorities)
+    n_particles = length(state.traces)
+    # Ensure logsumexp(log_weights) == log(n_particles) after resampling
+    if log_priorities === state.log_weights
+        # If priorities aren't customized, set all log weights to 0
+        state.log_weights .= 0.0
+    else
+        # Otherwise, set new weights to the ratio of weights over priorities
+        log_ws = state.log_weights[state.parents] .- log_priorities[state.parents]
+        # Adjust new weights such that they sum to the number of particles
+        state.log_weights = log_ws .+ (log(n_particles) - logsumexp(log_ws))
+    end
+end
+
+# Handle sub-state resampling differently since we can't update log_ml_est
+function update_weights!(state::ParticleFilterSubState, log_priorities)
+    n_particles = length(state.traces)
+    # Ensure logsumexp(log_weights) remains equal after resampling
+    if log_priorities === state.log_weights
+        # If priorities aren't customized, set all weights to average weight
+        state.log_weights .= logsumexp(state.log_weights) - log(n_particles)
+    else
+        # Otherwise, set new weights to the ratio of weights over priorities
+        log_ws = state.log_weights[state.parents] .- log_priorities[state.parents]
+        # Adjust new weights such that they sum to the original total weight
+        log_total_weight = logsumexp(state.log_weights)
+        state.log_weights .= log_ws .+ (log_total_weight - logsumexp(log_ws))
+    end
 end
