@@ -47,7 +47,8 @@ end
     pf_update!(state::ParticleFilterState, new_args::Tuple,
                argdiffs::Tuple, observations::ChoiceMap,
                proposal::GenerativeFunction, proposal_args::Tuple,
-               [transform::TraceTransformDSLProgram])
+               [transform::TraceTransformDSLProgram];
+               check::Bool=true)
 
 Perform a particle filter update, where the model arguments are adjusted and
 new observations are conditioned upon. New latent choices are sampled from a
@@ -69,36 +70,29 @@ equal. It is an error if no trace `t_new` satisfying the above conditions
 exists in the support of the model (with the new arguments).
 
 If a deterministic trace `transform` is also provided, `t_prop` is transformed
-before its choices are merged with `t_old`.
-"""
-function pf_update!(state::ParticleFilterView, new_args::Tuple,
-                    argdiffs::Tuple, observations::ChoiceMap,
-                    proposal::GenerativeFunction, proposal_args::Tuple)
-    n_particles = length(state.traces)
-    for i=1:n_particles
-        (prop_choices, prop_weight, _) =
-            propose(proposal, (state.traces[i], proposal_args...))
-        constraints = merge(observations, prop_choices)
-        state.new_traces[i], up_weight, _, discard =
-            update(state.traces[i], new_args, argdiffs, constraints)
-        if !isempty(discard)
-            error("Choices were updated or deleted: $discard")
-        end
-        state.log_weights[i] += up_weight - prop_weight
-    end
-    update_refs!(state)
-    return state
-end
+by a deterministic function before its choices are merged with `t_old`.
 
-function pf_update!(state::ParticleFilterView, new_args::Tuple,
-                    argdiffs::Tuple, observations::ChoiceMap,
-                    proposal::GenerativeFunction, proposal_args::Tuple,
-                    transform::TraceTransformDSLProgram)
-    n_particles = length(state.traces)
-    translator = GenParticleFilters.ExtendingTraceTranslator(
-        p_new_args=new_args, p_argdiffs=argdiffs, new_observations=observations,
-        q_forward=proposal, q_forward_args=proposal_args, transform=transform)
-    return pf_update!(state, translator)
+By default, a `check` is performed to ensure that no choices are 
+discarded as a result of updating the trace. Setting `check = false` allows
+for updates where previous observations are replaced with new ones.
+"""
+function pf_update!(
+    state::ParticleFilterView,
+    new_args::Tuple, argdiffs::Tuple,
+    observations::ChoiceMap,
+    proposal::GenerativeFunction, proposal_args::Tuple,
+    transform::Union{TraceTransformDSLProgram,Nothing} = nothing;
+    check::Bool=true
+)
+    translator = ExtendingTraceTranslator(
+        p_new_args=new_args,
+        p_argdiffs=argdiffs,
+        new_observations=observations,
+        q_forward=proposal,
+        q_forward_args=proposal_args,
+        transform=transform
+    )
+    return pf_update!(state, translator; check=check)
 end
 
 """
@@ -106,7 +100,8 @@ end
                argdiffs::Tuple, observations::ChoiceMap,
                fwd_proposal::GenerativeFunction, fwd_args::Tuple,
                bwd_proposal::GenerativeFunction, bwd_args::Tuple,
-               [transform::TraceTransformDSLProgram, check::Bool=false])
+               [transform::TraceTransformDSLProgram];
+               check::Bool=false, prev_observations=EmptyChoiceMap)
 
 Perform a particle filter update, with a custom forward and backward kernel.
 New latent choices are sampled from `fwd_proposal`, and any discarded choices
@@ -136,39 +131,31 @@ calls to `pf_update!`).
 If a trace `transform` is also provided, then more general forward and backward
 kernels can be used: `t_new` (the model's new trace) and `t_bwd` (the trace
 for the backward kernel) are constructed as a function of `t_old`, `t_fwd`,
-and any new `observations`. The `check` argument can also be set to `true`
-to check for correctness.
+and any new `observations`. The `check` and `prev_observations` keyword
+arguments can also be set to `true` to check for correctness.
+(See [`UpdatingTraceTranslator`](@ref) for more details.)
 
 Similar functionality is provided by [`move_reweight`](@ref), except that
 `pf_update!` also allows model arguments to be updated.
 """
-function pf_update!(state::ParticleFilterView, new_args::Tuple,
-                    argdiffs::Tuple, observations::ChoiceMap,
-                    fwd_proposal::GenerativeFunction, fwd_args::Tuple,
-                    bwd_proposal::GenerativeFunction, bwd_args::Tuple)
-    n_particles = length(state.traces)
-    for i=1:n_particles
-        (fwd_choices, fwd_weight, _) =
-            propose(fwd_proposal, (state.traces[i], fwd_args...))
-        constraints = merge(observations, fwd_choices)
-        state.new_traces[i], up_weight, _, discard =
-            update(state.traces[i], new_args, argdiffs, constraints)
-        bwd_weight, _ = isempty(discard) ? (0.0, nothing) :
-            assess(bwd_proposal, (state.new_traces[i], bwd_args...), discard)
-        state.log_weights[i] += up_weight - fwd_weight + bwd_weight
-    end
-    update_refs!(state)
-    return state
-end
-
-function pf_update!(state::ParticleFilterView, new_args::Tuple,
-                    argdiffs::Tuple, observations::ChoiceMap,
-                    fwd_proposal::GenerativeFunction, fwd_args::Tuple,
-                    bwd_proposal::GenerativeFunction, bwd_args::Tuple,
-                    transform::TraceTransformDSLProgram, check::Bool=false)
-    translator = GenParticleFilters.UpdatingTraceTranslator(
-        p_new_args=new_args, p_argdiffs=argdiffs, new_observations=observations,
-        q_forward=fwd_proposal, q_forward_args=fwd_args,
-        q_backward=bwd_proposal, q_backward_args=bwd_args, transform=transform)
-    return pf_update!(state, translator; check=check)
+function pf_update!(
+    state::ParticleFilterView,
+    new_args::Tuple, argdiffs::Tuple,
+    observations::ChoiceMap,
+    fwd_proposal::GenerativeFunction, fwd_args::Tuple,
+    bwd_proposal::GenerativeFunction, bwd_args::Tuple,
+    transform::Union{TraceTransformDSLProgram,Nothing} = nothing;
+    kwargs...
+)
+    translator = UpdatingTraceTranslator(
+        p_new_args=new_args,
+        p_argdiffs=argdiffs,
+        new_observations=observations,
+        q_forward=fwd_proposal,
+        q_forward_args=fwd_args,
+        q_backward=bwd_proposal,
+        q_backward_args=bwd_args,
+        transform=transform
+    )
+    return pf_update!(state, translator; kwargs...)
 end

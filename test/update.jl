@@ -79,7 +79,7 @@ end
     state = pf_initialize(line_model, (5,), line_choicemap(5), 100)
     state = pf_update!(state, (10,), (UnknownChange(),), choicemap(),
                        fwd_kernel, (1:10,), bwd_kernel, (1:5,),
-                       line_transform, true)
+                       line_transform; check=true)
     @test all(tr[:line => 5 => :y] == 0 for tr in get_traces(state))
     @test all(tr[:line => 5 => :outlier] == false || tr[:slope] == 0
             for tr in get_traces(state))
