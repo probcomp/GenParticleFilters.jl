@@ -12,12 +12,12 @@ ParticleFilterState(trs::Vector{T}, ws::Vector{Float64}) where {T <: Trace} =
 """
     pf_initialize(model::GenerativeFunction, model_args::Tuple,
                   observations::ChoiceMap, n_particles::Int;
-                  dynamic::Bool=false)
+                  dynamic=false)
 
     pf_initialize(model::GenerativeFunction, model_args::Tuple,
                   observations::ChoiceMap, proposal::GenerativeFunction,
                   proposal_args::Tuple, n_particles::Int;
-                  dynamic::Bool=false)
+                  dynamic=false)
 
 Initialize a particle filter, generating traces (i.e. particles)
 from the `model` constrained to the provided `observations`. A custom `proposal`
@@ -28,9 +28,11 @@ If `dynamic` is `true`, the particle filter will not be specialized to a fixed
 trace type, allowing for sequential Monte Carlo inference over a sequence
 of models with differing structure, at the expense of more memory usage.
 """
-function pf_initialize(model::GenerativeFunction{T,U}, model_args::Tuple,
-                       observations::ChoiceMap, n_particles::Int;
-                       dynamic::Bool=false) where {T,U}
+function pf_initialize(
+    model::GenerativeFunction{T,U}, model_args::Tuple,
+    observations::ChoiceMap, n_particles::Int;
+    dynamic::Bool=false
+) where {T,U}
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)
@@ -41,10 +43,11 @@ function pf_initialize(model::GenerativeFunction{T,U}, model_args::Tuple,
                                   log_weights, 0., collect(1:n_particles))
 end
 
-function pf_initialize(model::GenerativeFunction{T,U}, model_args::Tuple,
-                       observations::ChoiceMap, proposal::GenerativeFunction,
-                       proposal_args::Tuple, n_particles::Int;
-                       dynamic::Bool=false) where {T,U}
+function pf_initialize(
+    model::GenerativeFunction{T,U}, model_args::Tuple, observations::ChoiceMap,
+    proposal::GenerativeFunction, proposal_args::Tuple, n_particles::Int;
+    dynamic::Bool=false
+) where {T,U}
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)
@@ -59,14 +62,14 @@ function pf_initialize(model::GenerativeFunction{T,U}, model_args::Tuple,
 end
 
 """
-    pf_initialize(model::GenerativeFunction, model_args::Tuple, strata,
-                  observations::ChoiceMap, n_particles::Int;
-                  layout::Symbol=:contiguous, dynamic::Bool=false)
+    pf_initialize(model::GenerativeFunction, model_args::Tuple, 
+                  observations::ChoiceMap, strata, n_particles::Int;
+                  layout=:contiguous, dynamic=false)
 
-    pf_initialize(model::GenerativeFunction, model_args::Tuple, strata,
-                  observations::ChoiceMap, proposal::GenerativeFunction,
-                  proposal_args::Tuple, n_particles::Int;
-                  layout::Symbol=:contiguous, dynamic::Bool=false)
+    pf_initialize(model::GenerativeFunction, model_args::Tuple,
+                  observations::ChoiceMap, strata,
+                  proposal::GenerativeFunction, proposal_args::Tuple,
+                  n_particles::Int; layout=:contiguous, dynamic=false)
 
 Perform *stratified* initialization of a particle filter, given a set of
 `strata` specified as an iterator over choicemaps. Each generated trace is
@@ -86,9 +89,11 @@ If `dynamic` is `true`, the particle filter will not be specialized to a fixed
 trace type, allowing for sequential Monte Carlo inference over a sequence
 of models with differing structure, at the expense of more memory usage.
 """
-function pf_initialize(model::GenerativeFunction{T,U}, model_args::Tuple,
-                       strata, observations::ChoiceMap, n_particles::Int;
-                       layout::Symbol=:contiguous, dynamic::Bool=false) where {T,U}
+function pf_initialize(
+    model::GenerativeFunction{T,U}, model_args::Tuple,
+    observations::ChoiceMap, strata, n_particles::Int;
+    layout::Symbol=:contiguous, dynamic::Bool=false
+) where {T,U}
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)
@@ -121,10 +126,12 @@ function pf_initialize(model::GenerativeFunction{T,U}, model_args::Tuple,
                                   log_weights, 0., collect(1:n_particles))
 end
 
-function pf_initialize(model::GenerativeFunction{T,U}, model_args::Tuple, strata,
-                       observations::ChoiceMap, proposal::GenerativeFunction,
-                       proposal_args::Tuple, n_particles::Int;
-                       layout::Symbol=:contiguous, dynamic::Bool=false) where {T,U}
+function pf_initialize(
+    model::GenerativeFunction{T,U}, model_args::Tuple,
+    observations::ChoiceMap, strata,
+    proposal::GenerativeFunction, proposal_args::Tuple, n_particles::Int;
+    layout::Symbol=:contiguous, dynamic::Bool=false
+) where {T,U}
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)

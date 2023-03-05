@@ -38,16 +38,16 @@ end
     slope_strata = (slope_choicemap(s) for s in -2:1:2)
     observations = line_choicemap(1)
     # Test contiguous stratification
-    state = pf_initialize(line_model, (1,), slope_strata,
-                          observations, 100; layout=:contiguous)
+    state = pf_initialize(line_model, (1,), observations,
+                          slope_strata, 100; layout=:contiguous)
     for (k, slope) in zip([20, 40, 60, 80, 100], -2:1:2)
         idxs = (k-20+1):k
         @test all(tr[:slope] == slope for tr in get_traces(state[idxs]))
         @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state[idxs]))
     end
     # Test interleaved stratification
-    state = pf_initialize(line_model, (1,), slope_strata,
-                          observations, 100; layout=:interleaved)
+    state = pf_initialize(line_model, (1,), observations,
+                          slope_strata, 100; layout=:interleaved)
     for (k, slope) in zip([1, 2, 3, 4, 5], -2:1:2)
         idxs = k:20:100
         @test all(tr[:slope] == slope for tr in get_traces(state[idxs]))
@@ -59,7 +59,7 @@ end
     slope_strata = (slope_choicemap(s) for s in -2:1:2)
     observations = line_choicemap(1)
     # Test contiguous stratification
-    state = pf_initialize(line_model, (1,), slope_strata, observations,
+    state = pf_initialize(line_model, (1,), observations, slope_strata,
                           outlier_propose, ([1],), 100; layout=:contiguous)
     for (k, slope) in zip([20, 40, 60, 80, 100], -2:1:2)
         idxs = (k-20+1):k
@@ -68,7 +68,7 @@ end
         @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state[idxs]))
     end
     # Test interleaved stratification
-    state = pf_initialize(line_model, (1,), slope_strata, observations,
+    state = pf_initialize(line_model, (1,), observations, slope_strata,
                           outlier_propose, ([1],), 100; layout=:interleaved)
     for (k, slope) in zip([1, 2, 3, 4, 5], -2:1:2)
         idxs = k:20:100
