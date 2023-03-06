@@ -116,12 +116,26 @@ end
     )
 
 Constructor for a updating trace translator, which updates the trace of model
-given a forward kernel `q_forward`, backward kernel `q_backward`,
+given a forward proposal `q_forward`, backward proposal `q_backward`,
 new arguments for that model `p_new_args`, and `new_observations`.
     
 Optionally, a trace `transform` can be provided, specifying how the input
-model trace and forward kernel trace get mapped to the output model trace and 
-backward kernel trace.
+model trace and forward proposal trace get mapped to the output model trace and 
+backward proposal trace.
+
+When a `transform` is not provided, the update performed by an
+`UpdatingTraceTranslator` corresponds to Del Moral SMC [1]. When a `transform`
+is provided, the update corresponds to SMCP³ [2], a more general form of
+SMC that supports proposals with auxiliary randomness, as well as deterministic 
+transformations between random variables in the model and the proposals.
+
+[1] P. D. Moral, A. Doucet, and A. Jasra, "Sequential Monte Carlo samplers,"
+Journal of the Royal Statistical Society: Series B (Statistical Methodology),
+vol. 68, no. 3, pp. 411–436, 2006.
+
+[2] Lew, A. K., Matheos, G., Zhi-Xuan, T., Ghavamizadeh, M., Gothoskar, N.,
+Russell, S., and Mansinghka, V. K. "SMCP3: Sequential Monte Carlo with
+Probabilistic Program Proposals.", AISTATS, 2023.
 """
 @with_kw mutable struct UpdatingTraceTranslator{
     T <: Union{Nothing, TraceTransformDSLProgram},
