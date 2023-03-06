@@ -83,10 +83,10 @@ end
 @testset "Update with custom proposal and trace transform" begin
     # Define proposal and trace transform
     @gen proposal(tr, idxs) = [{(:outlier, i)} ~ bernoulli(0.0) for i in idxs]
-    @transform remap (p_old, _) to (p_new, _) begin
-        idxs = get_args(p_old)[2]
+    @transform remap (q_fwd, _) to (p_new, _) begin
+        idxs = get_args(q_fwd)[2]
         for i in idxs
-            @copy(p_old[(:outlier, i)], p_new[:line => i => :outlier])
+            @copy(q_fwd[(:outlier, i)], p_new[:line => i => :outlier])
         end
     end
     # Test standard version

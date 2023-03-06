@@ -27,6 +27,7 @@ outlier_choicemap(n::Int, value::Bool) =
 
 include("utils.jl")
 include("statistics.jl")
+include("translate.jl")
 include("initialize.jl")
 include("update.jl")
 include("resample.jl")
