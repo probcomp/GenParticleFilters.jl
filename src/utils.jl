@@ -18,6 +18,43 @@ end
     state.traces[:] = state.new_traces
 end
 
+"""
+    stratified_map!(f, n_total, strata, args...; layout=:contiguous)
+
+Maps the function `f` in a stratified fashion given `strata`. The function
+`f` should have the form `f(i, stratum, args...)`, and specify how the `i`th
+index should be handled given the `stratum`.
+"""
+function stratified_map!(f::Function, n_total::Int, strata, args...;
+                         layout=:contiguous)
+    n_strata = length(strata)
+    block_size = n_total ÷ n_strata
+    # Update strata in a contiguous or interleaved manner
+    for (k, stratum) in enumerate(strata)
+        if layout == :contiguous
+            idxs = ((k-1)*block_size+1):k*block_size
+        else # layout == :interleaved
+            idxs = k:n_strata:n_strata*block_size
+        end
+        for i in idxs
+            f(i, stratum, args...)
+        end
+    end
+    # Allocate remaining indices to random strata
+    n_remaining = n_total - n_strata * block_size
+    if n_remaining > 0
+        strata = strata isa Vector ? strata : collect(strata)
+        remainder = sample(strata, n_remaining)
+        for (k, stratum) in enumerate(remainder)
+            i = n_total - n_remaining + k
+            for i in idxs
+                f(i, stratum, args...)
+            end
+        end
+    end
+    return nothing
+end
+
 lognorm(vs::AbstractVector) = vs .- logsumexp(vs)
 
 function softmax(vs::AbstractVector{T}) where {T <: Real}

@@ -97,30 +97,10 @@ function pf_initialize(
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)
-    # Generate traces for each stratum in a contiguous or interleaved manner
-    n_strata = length(strata)
-    block_size = n_particles ÷ n_strata
-    for (k, stratum) in enumerate(strata)
-        if layout == :contiguous
-            idxs = ((k-1)*block_size+1):k*block_size
-        else # layout == :interleaved
-            idxs = k:n_strata:n_strata*block_size
-        end
-        for i in idxs
-            constraints = merge(stratum, observations)
-            (traces[i], log_weights[i]) = generate(model, model_args, constraints)
-        end
-    end
-    # Allocate remaining traces to random strata
-    n_remaining = n_particles - n_strata * block_size
-    if n_remaining > 0
-        strata = strata isa Vector ? strata : collect(strata)
-        remainder = sample(strata, n_remaining)
-        for (k, stratum) in enumerate(remainder)
-            i = n_particles - n_remaining + k
-            constraints = merge(stratum, observations)
-            (traces[i], log_weights[i]) = generate(model, model_args, constraints)
-        end
+    # Generate traces in a stratified manner
+    stratified_map!(n_particles, strata; layout=layout) do i, stratum
+        constraints = merge(stratum, observations)
+        (traces[i], log_weights[i]) = generate(model, model_args, constraints)
     end
     return ParticleFilterState{V}(traces, Vector{V}(undef, n_particles),
                                   log_weights, 0., collect(1:n_particles))
@@ -135,34 +115,11 @@ function pf_initialize(
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)
-    # Generate traces for each stratum in a contiguous or interleaved manner
-    n_strata = length(strata)
-    block_size = n_particles ÷ n_strata
-    for (k, stratum) in enumerate(strata)
-        if layout == :contiguous
-            idxs = ((k-1)*block_size+1):k*block_size
-        else # layout == :interleaved
-            idxs = k:n_strata:n_strata*block_size
-        end
-        for i in idxs
-            (prop_choices, prop_weight, _) = propose(proposal, proposal_args)
-            constraints = merge(stratum, observations, prop_choices)
-            (traces[i], model_weight) = generate(model, model_args, constraints)
-            log_weights[i] = model_weight - prop_weight
-        end
-    end
-    # Allocate remaining traces to random strata
-    n_remaining = n_particles - n_strata * block_size
-    if n_remaining > 0
-        strata = strata isa Vector ? strata : collect(strata)
-        remainder = sample(strata, n_remaining)
-        for (k, stratum) in enumerate(remainder)
-            i = n_particles - n_remaining + k
-            (prop_choices, prop_weight, _) = propose(proposal, proposal_args)
-            constraints = merge(stratum, observations, prop_choices)
-            (traces[i], model_weight) = generate(model, model_args, constraints)
-            log_weights[i] = model_weight - prop_weight
-        end
+    stratified_map!(n_particles, strata; layout=layout) do i, stratum
+        (prop_choices, prop_weight, _) = propose(proposal, proposal_args)
+        constraints = merge(stratum, observations, prop_choices)
+        (traces[i], model_weight) = generate(model, model_args, constraints)
+        log_weights[i] = model_weight - prop_weight
     end
     return ParticleFilterState{V}(traces, Vector{V}(undef, n_particles),
                                   log_weights, 0., collect(1:n_particles))
