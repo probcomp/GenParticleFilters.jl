@@ -101,7 +101,7 @@ end
                fwd_proposal::GenerativeFunction, fwd_args::Tuple,
                bwd_proposal::GenerativeFunction, bwd_args::Tuple,
                [transform::TraceTransformDSLProgram];
-               check::Bool=false, prev_observations=EmptyChoiceMap)
+               check::Bool=false, prev_observations=EmptyChoiceMap())
 
 Perform a particle filter update, with a custom forward and backward kernel.
 New latent choices are sampled from `fwd_proposal`, and any discarded choices
@@ -158,4 +158,110 @@ function pf_update!(
         transform=transform
     )
     return pf_update!(state, translator; kwargs...)
+end
+
+"""
+    pf_update!(state::ParticleFilterState, new_args::Tuple,
+               argdiffs::Tuple, observations::ChoiceMap, strata,
+               [fwd_proposal::GenerativeFunction, fwd_args::Tuple,
+                bwd_proposal::GenerativeFunction, bwd_args::Tuple,
+                transform::TraceTransformDSLProgram];
+               layout=:interleaved, kwargs...)
+
+    pf_update!(state::ParticleFilterState, translator::TraceTranslator, strata;
+               layout=:interleaved, translator_args...)
+
+Perform a *stratified* particle filter update,  given a set of `strata`
+specified as an iterator over choicemaps. Each generated trace is
+constrained to both the provided `observations` and the choicemap for the
+stratum it belongs to. Forward proposals, backward proposals, trace transforms,
+or trace translators can also be specified, as in the non-stratified versions of
+`pf_update!`.
+
+For a filter with `N` particles and `K` strata, each stratum is assigned at
+least `B = ⌊N / K⌋` particles. If `layout` is `:contiguous`, these particles
+will be assigned in continguous blocks (e.g., the particles for the
+first stratum will have indices `1:B`). If `layout` is `:interleaved`, then 
+particles from each stratum will have interleaved indices (e.g., the first
+stratum will have indices `1:K:B*K`). The remaining `R` particles are
+distributed at random among the strata, and allocated the indices `N-R:N`.
+
+By default the `layout` is `:interleaved`, as this allows for convenient
+sub-stratification of the contiguous blocks allocated to each stratum when 
+performing stratified initialization with [`pf_initialize`](@ref).
+"""
+function pf_update!(state::ParticleFilterView, new_args::Tuple,
+                    argdiffs::Tuple, observations::ChoiceMap, strata;
+                    layout=:interleaved)
+    # Update traces in a stratified manner
+    n_particles = length(state.traces)
+    stratified_map!(n_particles, strata; layout=layout) do i, stratum
+        constraints = merge(stratum, observations)
+        state.new_traces[i], increment, _, discard =
+            update(state.traces[i], new_args, argdiffs, constraints)
+        if !isempty(discard)
+            error("Choices were updated or deleted: $discard")
+        end
+        state.log_weights[i] += increment    
+    end
+    update_refs!(state)
+    return state
+end
+
+function pf_update!(state::ParticleFilterView, translator::TraceTranslator,
+                    strata; layout=:interleaved, translator_args...)
+    # Make copy of translator to ensure thread-safe mutation
+    translator = copy(translator)
+    observations = translator.new_observations
+    # Update traces in a stratified manner
+    n_particles = length(state.traces)
+    stratified_map!(n_particles, strata; layout=layout) do i, stratum
+        translator.new_observations = merge(stratum, observations)
+        state.new_traces[i], log_weight =
+            translator(state.traces[i]; translator_args...)
+        state.log_weights[i] += log_weight
+    end
+    update_refs!(state)
+    return state
+end
+
+function pf_update!(
+    state::ParticleFilterView,
+    new_args::Tuple, argdiffs::Tuple,
+    observations::ChoiceMap, strata,
+    proposal::GenerativeFunction, proposal_args::Tuple,
+    transform::Union{TraceTransformDSLProgram,Nothing} = nothing;
+    layout=:interleaved, check::Bool=true
+)
+    translator = ExtendingTraceTranslator(
+        p_new_args=new_args,
+        p_argdiffs=argdiffs,
+        new_observations=observations,
+        q_forward=proposal,
+        q_forward_args=proposal_args,
+        transform=transform
+    )
+    return pf_update!(state, translator, strata; layout=layout, check=check)
+end
+
+function pf_update!(
+    state::ParticleFilterView,
+    new_args::Tuple, argdiffs::Tuple,
+    observations::ChoiceMap, strata,
+    fwd_proposal::GenerativeFunction, fwd_args::Tuple,
+    bwd_proposal::GenerativeFunction, bwd_args::Tuple,
+    transform::Union{TraceTransformDSLProgram,Nothing} = nothing;
+    kwargs...
+)
+    translator = UpdatingTraceTranslator(
+        p_new_args=new_args,
+        p_argdiffs=argdiffs,
+        new_observations=observations,
+        q_forward=fwd_proposal,
+        q_forward_args=fwd_args,
+        q_backward=bwd_proposal,
+        q_backward_args=bwd_args,
+        transform=transform
+    )
+    return pf_update!(state, translator, strata; kwargs...)
 end

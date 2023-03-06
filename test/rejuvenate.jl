@@ -46,7 +46,7 @@ end
     # Check that only traces that were accepted are rejuvenated
     new_traces = get_traces(state)
     @test all(a ? t1 !== t2 : t1 === t2
-            for (a, t1, t2) in zip(accepts, old_traces, new_traces))
+              for (a, t1, t2) in zip(accepts, old_traces, new_traces))
 end
 
 @testset "Move-reweight rejuvenation" begin
@@ -96,7 +96,7 @@ end
     # Check that only traces that were accepted are rejuvenated
     new_traces = get_traces(state)[1:50]
     @test all(a ? t1 !== t2 : t1 === t2
-            for (a, t1, t2) in zip(accepts, old_traces, new_traces))
+              for (a, t1, t2) in zip(accepts, old_traces, new_traces))
     # Check that weights are adjusted accordingly
     new_weights = get_log_weights(state)[51:end]
     @test all(isapprox.(new_weights, old_weights .+ rel_weights; atol=1e-3))

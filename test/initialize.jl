@@ -41,17 +41,17 @@ end
     state = pf_initialize(line_model, (1,), observations,
                           slope_strata, 100; layout=:contiguous)
     for (k, slope) in zip([20, 40, 60, 80, 100], -2:1:2)
-        idxs = (k-20+1):k
-        @test all(tr[:slope] == slope for tr in get_traces(state[idxs]))
-        @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state[idxs]))
+        traces = get_traces(state[(k-20+1):k])
+        @test all(tr[:slope] == slope for tr in traces)
+        @test all(tr[:line => 1 => :y] == 0 for tr in traces)
     end
     # Test interleaved stratification
     state = pf_initialize(line_model, (1,), observations,
                           slope_strata, 100; layout=:interleaved)
     for (k, slope) in zip([1, 2, 3, 4, 5], -2:1:2)
-        idxs = k:20:100
-        @test all(tr[:slope] == slope for tr in get_traces(state[idxs]))
-        @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state[idxs]))
+        traces = get_traces(state[k:20:100])
+        @test all(tr[:slope] == slope for tr in traces)
+        @test all(tr[:line => 1 => :y] == 0 for tr in traces)
     end
 end
 
@@ -62,19 +62,19 @@ end
     state = pf_initialize(line_model, (1,), observations, slope_strata,
                           outlier_propose, ([1],), 100; layout=:contiguous)
     for (k, slope) in zip([20, 40, 60, 80, 100], -2:1:2)
-        idxs = (k-20+1):k
-        @test all(tr[:slope] == slope for tr in get_traces(state[idxs]))
-        @test all(tr[:line => 1 => :outlier] == false for tr in get_traces(state[idxs]))
-        @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state[idxs]))
+        traces = get_traces(state[(k-20+1):k])
+        @test all(tr[:slope] == slope for tr in traces)
+        @test all(tr[:line => 1 => :outlier] == false for tr in traces)
+        @test all(tr[:line => 1 => :y] == 0 for tr in traces)
     end
     # Test interleaved stratification
     state = pf_initialize(line_model, (1,), observations, slope_strata,
                           outlier_propose, ([1],), 100; layout=:interleaved)
     for (k, slope) in zip([1, 2, 3, 4, 5], -2:1:2)
-        idxs = k:20:100
-        @test all(tr[:slope] == slope for tr in get_traces(state[idxs]))
-        @test all(tr[:line => 1 => :outlier] == false for tr in get_traces(state[idxs]))
-        @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state[idxs]))
+        traces = get_traces(state[k:20:100])
+        @test all(tr[:slope] == slope for tr in traces)
+        @test all(tr[:line => 1 => :outlier] == false for tr in traces)
+        @test all(tr[:line => 1 => :y] == 0 for tr in traces)
     end
 end
 

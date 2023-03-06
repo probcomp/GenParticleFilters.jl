@@ -22,6 +22,9 @@ slope_choicemap(slope) = choicemap((:slope => slope))
 line_choicemap(n::Int, slope::Real=0.) =
     choicemap([(:line => i => :y, i*slope) for i in 1:n]...)
 
+outlier_choicemap(n::Int, value::Bool) =
+    choicemap((:line => n => :outlier, value))
+
 include("utils.jl")
 include("statistics.jl")
 include("initialize.jl")

@@ -1,4 +1,11 @@
+## Trace translators for SMC / SMCP^3 ##
+export ExtendingTraceTranslator, UpdatingTraceTranslator
+
 using Gen: run_first_pass, jacobian_correction, check_round_trip, run_transform
+
+function Base.copy(translator::T) where {T <: TraceTranslator}
+    return T((getfield(translator, name) for name in fieldnames(T))...)
+end
 
 ##################################
 # ExtendingTraceTranslator #
@@ -110,7 +117,7 @@ end
 
 Constructor for a updating trace translator, which updates the trace of model
 given a forward kernel `q_forward`, backward kernel `q_backward`,
-new arguments for that model `p_new_args`, and `new_observations`.\
+new arguments for that model `p_new_args`, and `new_observations`.
     
 Optionally, a trace `transform` can be provided, specifying how the input
 model trace and forward kernel trace get mapped to the output model trace and 
