@@ -217,7 +217,7 @@ output trace and the (incremental) importance weight.
 # Keyword Arguments
 
 Set `check = true` to enable a bijection check (this requires that the transform
-has been paired with its inverse using `pair_bijections! or `is_involution!`).
+has been paired with its inverse using `pair_bijections!` or `is_involution!`).
 
 If `check` is enabled, then `prev_observations` should be provided as a
 choicemap containing the random choices in the input trace that are replaced
