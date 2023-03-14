@@ -79,7 +79,7 @@ unconstrained choices.
 
 For a filter with `N` particles and `K` strata, each stratum is first
 allocated `B = ⌊N / K⌋` particles. If `layout` is `:contiguous`, these
-particles will be allocated in continguous blocks (e.g., the particles for the
+particles will be allocated in contiguous blocks (e.g., the particles for the
 first stratum will have indices `1:B`). If `layout` is `:interleaved`, then 
 particles from each stratum will have interleaved indices (e.g., the first
 stratum will have indices `1:K:B*K`). The remaining `R` particles are

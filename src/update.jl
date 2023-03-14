@@ -180,7 +180,7 @@ or trace translators can also be specified, as in the non-stratified versions of
 
 For a filter with `N` particles and `K` strata, each stratum is assigned at
 least `B = ⌊N / K⌋` particles. If `layout` is `:contiguous`, these particles
-will be assigned in continguous blocks (e.g., the particles for the
+will be assigned in contiguous blocks (e.g., the particles for the
 first stratum will have indices `1:B`). If `layout` is `:interleaved`, then 
 particles from each stratum will have interleaved indices (e.g., the first
 stratum will have indices `1:K:B*K`). The remaining `R` particles are
