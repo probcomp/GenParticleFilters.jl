@@ -49,7 +49,7 @@ end
     state = pf_initialize(line_model, (1,), observations,
                           slope_strata, 100; layout=:interleaved)
     for (k, slope) in zip([1, 2, 3, 4, 5], -2:1:2)
-        traces = get_traces(state[k:20:100])
+        traces = get_traces(state[k:5:100])
         @test all(tr[:slope] == slope for tr in traces)
         @test all(tr[:line => 1 => :y] == 0 for tr in traces)
     end
@@ -71,7 +71,7 @@ end
     state = pf_initialize(line_model, (1,), observations, slope_strata,
                           outlier_propose, ([1],), 100; layout=:interleaved)
     for (k, slope) in zip([1, 2, 3, 4, 5], -2:1:2)
-        traces = get_traces(state[k:20:100])
+        traces = get_traces(state[k:5:100])
         @test all(tr[:slope] == slope for tr in traces)
         @test all(tr[:line => 1 => :outlier] == false for tr in traces)
         @test all(tr[:line => 1 => :y] == 0 for tr in traces)
