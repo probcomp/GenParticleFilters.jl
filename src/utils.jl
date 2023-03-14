@@ -3,7 +3,7 @@ export get_log_norm_weights, get_norm_weights
 export effective_sample_size, get_ess
 export log_ml_estimate, get_lml_est
 
-using Gen: effective_sample_size, log_ml_estimate
+using Gen: effective_sample_size, log_ml_estimate, sample_unweighted_traces
 
 "Replace traces with newly updated traces."
 @inline function update_refs!(state::ParticleFilterState)
@@ -94,6 +94,7 @@ Alias for `effective_sample_size`(@ref). Computes the effective sample size.
 """
 get_ess(state::ParticleFilterView) = Gen.effective_sample_size(state)
 
+# Extend to support sub-states
 function Gen.log_ml_estimate(state::ParticleFilterSubState)
     n_particles = length(state.traces)
     source_lml_est = state.source.log_ml_est
@@ -107,3 +108,11 @@ Alias for `log_ml_estimate`(@ref). Returns the particle filter's current
 estimate of the log marginal likelihood.
 """
 get_lml_est(state::ParticleFilterView) = Gen.log_ml_estimate(state)
+
+# Extend to support sub-states
+function Gen.sample_unweighted_traces(state::ParticleFilterSubState,
+                                      n_samples::Int)
+    weights = get_norm_weights(state)
+    traces = sample(state.traces, Weights(weights), n_samples)
+    return traces
+end
