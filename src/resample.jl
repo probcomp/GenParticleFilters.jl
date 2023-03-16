@@ -34,7 +34,7 @@ function pf_resample!(state::ParticleFilterView,
 end
 
 """
-    pf_multnomial_resample!(state::ParticleFilterState; kwargs...)
+    pf_multinomial_resample!(state::ParticleFilterState; kwargs...)
 
 Performs multinomial resampling (i.e. simple random resampling) of the
 particles in the filter. Each trace (i.e. particle) is resampled with
@@ -54,7 +54,7 @@ function pf_multinomial_resample!(state::ParticleFilterView;
     # Resample new traces according to current normalized weights
     weights = softmax(log_priorities)
     rand!(Categorical(weights), state.parents)
-    state.new_traces[1:end] = state.traces[state.parents]
+    state.new_traces .= view(state.traces, state.parents)
     # Reweight particles and update trace references
     update_weights!(state, log_priorities)
     update_refs!(state)
@@ -179,7 +179,7 @@ function update_weights!(state::ParticleFilterState, log_priorities)
         # Otherwise, set new weights to the ratio of weights over priorities
         log_ws = state.log_weights[state.parents] .- log_priorities[state.parents]
         # Adjust new weights such that they sum to the number of particles
-        state.log_weights = log_ws .+ (log(n_particles) - logsumexp(log_ws))
+        state.log_weights .= log_ws .+ (log(n_particles) - logsumexp(log_ws))
     end
 end
 
