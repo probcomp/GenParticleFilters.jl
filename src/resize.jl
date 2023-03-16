@@ -1,5 +1,110 @@
 ## Functions for resizing particle filters ##
+export pf_resize!, pf_multinomial_resize!, pf_residual_resize!
 export pf_replicate!, pf_dereplicate!
+
+"""
+    pf_resize!(state::ParticleFilterState, n_particles::Int,
+               method=:multinomial; kwargs...)
+
+Resizes a particle filter by resampling existing particles until a total of 
+`n_particles` have been sampled. The resampling method can optionally be
+specified: `:multinomial` (default) or `:residual`.
+
+A `priority_fn` can also be specified as a keyword argument, which maps log
+particle weights to custom log priority scores for the purpose of resampling
+(e.g. `w -> w/2` for less aggressive pruning).
+"""
+function pf_resize!(state::ParticleFilterState, n_particles::Int,
+                    method::Symbol=:multinomial; kwargs...)
+    if method == :multinomial
+        return pf_multinomial_resize!(state, n_particles; kwargs...)
+    elseif method == :residual
+        return pf_residual_resize!(state, n_particles; kwargs...)
+    else
+        error("Resampling method $method not recognized.")
+    end
+end
+
+"""
+    pf_multinomial_resize!(state::ParticleFilterState, n_particles::Int;
+                           kwargs...)
+
+Resizes a particle filter through multinomial resampling (i.e. simple random
+resampling) of existing particles until `n_particles` are sampled. Each trace
+(i.e. particle) is resampled with probability proportional to its weight.
+
+A `priority_fn` can be specified as a keyword argument, which maps log particle
+weights to custom log priority scores for the purpose of resampling
+(e.g. `w -> w/2` for less aggressive pruning).
+"""
+function pf_multinomial_resize!(state::ParticleFilterState, n_particles::Int;
+                                priority_fn=nothing)
+    # Update estimate of log marginal likelihood
+    update_lml_est!(state)
+    # Compute priority scores if priority function is provided
+    log_priorities = priority_fn === nothing ?
+        state.log_weights : priority_fn.(state.log_weights)
+    # Resize arrays
+    resize!(state.parents, n_particles)
+    resize!(state.new_traces, n_particles)
+    # Resample new traces according to current normalized weights
+    weights = softmax(log_priorities)
+    rand!(Categorical(weights), state.parents)
+    state.new_traces .= view(state.traces, state.parents)
+    # Reweight particles and update trace references
+    update_weights!(state, n_particles, log_priorities)
+    update_refs!(state, n_particles)
+    return state
+end
+
+"""
+    pf_residual_resize!(state::ParticleFilterState, n_particles::Int; kwargs...)
+
+Resizes a particle filter through residual resampling of existing particles.
+For each particle with normalized weight ``w_i``, ``⌊n w_i⌋`` copies are
+resampled, w here ``n`` is `n_particles`. The remainder are sampled with
+probability proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``.
+
+A `priority_fn` can be specified as a keyword argument, which maps log particle
+weights to custom log priority scores for the purpose of resampling
+(e.g. `w -> w/2` for less aggressive pruning).
+"""
+function pf_residual_resize!(state::ParticleFilterState, n_particles::Int;
+                             priority_fn=nothing)
+    # Update estimate of log marginal likelihood
+    update_lml_est!(state)
+    # Compute priority scores if priority function is provided
+    log_priorities = priority_fn === nothing ?
+        state.log_weights : priority_fn.(state.log_weights)
+    # Resize arrays
+    resize!(state.parents, n_particles)
+    resize!(state.new_traces, n_particles)
+    # Deterministically copy previous particles according to their weights
+    n_resampled = 0
+    weights = softmax(log_priorities)
+    for (i, w) in enumerate(weights)
+        n_copies = floor(Int, n_particles * w)
+        if n_copies == 0 continue end
+        state.parents[n_resampled+1:n_resampled+n_copies] .= i
+        for j in 1:n_copies
+            state.new_traces[n_resampled+j] = state.traces[i]
+        end
+        n_resampled += n_copies
+    end
+    # Sample remainder according to residual weights
+    if n_resampled < n_particles
+        r_weights = n_particles .* weights .- floor.(n_particles .* weights)
+        r_weights = r_weights / sum(r_weights)
+        r_idxs = n_resampled+1:n_particles
+        r_parents = view(state.parents, r_idxs)
+        rand!(Categorical(r_weights), r_parents)
+        state.new_traces[r_idxs] .= view(state.traces, r_parents)
+    end
+    # Reweight particles and update trace references
+    update_weights!(state, n_particles, log_priorities)
+    update_refs!(state, n_particles)
+    return state
+end
 
 """
     pf_replicate!(state::ParticleFilterState, n_replicates::Int;
@@ -21,8 +126,8 @@ function pf_replicate!(state::ParticleFilterState, n_replicates::Int;
     _repeat(x, k) = layout == :contiguous ? repeat(x; inner=k) : repeat(x, k)
     state.parents = _repeat(eachindex(state.traces), n_replicates)
     state.new_traces = _repeat(state.traces, n_replicates) 
-    state.traces = copy(state.new_traces)
     state.log_weights = _repeat(state.log_weights, n_replicates)
+    update_refs!(state, length(state.new_traces))
     return state
 end
 
@@ -75,6 +180,34 @@ function pf_dereplicate!(state::ParticleFilterState, n_replicates::Int;
     end
     state.parents = collect(idxs)
     state.new_traces = state.traces[idxs]
-    state.traces = copy(state.new_traces)
+    update_refs!(state, n_new)
     return state
+end
+
+"Update particle weights after a resizing step."
+function update_weights!(state::ParticleFilterState, n_particles::Int,
+                         log_priorities)
+    # Ensure logsumexp(log_weights) == log(n_particles) after resampling
+    if log_priorities === state.log_weights
+        # If priorities aren't customized, set all log weights to 0
+        resize!(state.log_weights, n_particles)
+        state.log_weights .= 0.0
+    else
+        # Otherwise, set new weights to the ratio of weights over priorities
+        log_ws = state.log_weights[state.parents] .- log_priorities[state.parents]
+        # Adjust new weights such that they sum to the number of particles
+        resize!(state.log_weights, n_particles)
+        state.log_weights .= log_ws .+ (log(n_particles) - logsumexp(log_ws))
+    end
+end
+
+"Replace traces with newly updated traces after a resizing step."
+@inline function update_refs!(state::ParticleFilterState, n_particles::Int)
+    # Swap references
+    tmp = state.traces
+    state.traces = state.new_traces
+    state.new_traces = tmp
+    # Resize to ensure dimensions match
+    @assert length(state.traces) == n_particles
+    resize!(state.new_traces, n_particles)
 end

@@ -1,5 +1,72 @@
 @testset "Particle filter resizing" begin
 
+@testset "Multinomial resizing" begin
+    # Test multinomial resampling of all particles
+    for n_particles in [50, 150]
+        state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
+        old_traces = copy(get_traces(state))
+        old_lml_est = get_lml_est(state)
+        state = pf_resize!(state, n_particles, :multinomial)
+        new_traces = get_traces(state)
+        new_lml_est = get_lml_est(state)
+        @test length(new_traces) == n_particles
+        @test new_traces == old_traces[state.parents]
+        @test new_lml_est ≈ old_lml_est
+    end
+
+    # Same as above, with a custom priority function
+    p_fn = w -> w / 2
+    for n_particles in [50, 150]
+        state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
+        old_traces = copy(get_traces(state))
+        old_lml_est = get_lml_est(state)
+        state = pf_resize!(state, n_particles, :multinomial; priority_fn=p_fn)
+        new_traces = get_traces(state)
+        new_lml_est = get_lml_est(state)
+        @test length(new_traces) == n_particles
+        @test new_traces == old_traces[state.parents]
+        @test new_lml_est ≈ old_lml_est
+    end
+end
+
+@testset "Residual resizing" begin
+    # Test that at least the minimum number of copies are resampled
+    for n_particles in [50, 150]
+        state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
+        old_traces = copy(get_traces(state))
+        old_lml_est = get_lml_est(state)
+        weights = get_norm_weights(state)
+        min_copies = floor.(Int, weights * n_particles)
+        state = pf_resize!(state, n_particles, :residual)
+        new_traces = get_traces(state)
+        @test length(new_traces) == n_particles
+        copies = [sum([t1 == t2 for t1 in new_traces]) for t2 in old_traces]
+        @test new_traces == old_traces[state.parents]
+        @test all(copies .>= min_copies)
+        new_lml_est = get_lml_est(state)
+        @test new_lml_est ≈ old_lml_est
+    end
+
+    # Same test but with a custom priority function
+    p_fn = w -> w / 2
+    for n_particles in [50, 150]
+        state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
+        old_traces = copy(get_traces(state))
+        old_lml_est = get_lml_est(state)
+        log_priorities = p_fn.(get_log_weights(state))
+        weights = exp.(log_priorities .- logsumexp(log_priorities))
+        min_copies = floor.(Int, weights * n_particles)
+        state = pf_resize!(state, n_particles, :residual; priority_fn=p_fn)
+        new_traces = get_traces(state)
+        @test length(new_traces) == n_particles
+        copies = [sum([t1 == t2 for t1 in new_traces]) for t2 in old_traces]
+        @test new_traces == old_traces[state.parents]
+        @test all(copies .>= min_copies)
+        new_lml_est = get_lml_est(state)
+        @test new_lml_est ≈ old_lml_est
+    end
+end
+
 @testset "Particle replication" begin
     slope_strata = (slope_choicemap(s) for s in -2:1:2)
     observations = line_choicemap(1)

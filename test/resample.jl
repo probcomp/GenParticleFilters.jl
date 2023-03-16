@@ -21,7 +21,6 @@
     new_lml_est = get_lml_est(state)
     @test new_traces == old_traces[state.parents]
     @test new_lml_est ≈ old_lml_est
-
 end
 
 @testset "Residual resampling" begin
