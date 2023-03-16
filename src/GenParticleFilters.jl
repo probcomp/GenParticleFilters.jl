@@ -13,5 +13,6 @@ include("initialize.jl")
 include("update.jl")
 include("resample.jl")
 include("rejuvenate.jl")
+include("resize.jl")
 
 end
