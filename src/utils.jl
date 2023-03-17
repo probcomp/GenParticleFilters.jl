@@ -90,7 +90,7 @@ Gen.effective_sample_size(state::ParticleFilterView) =
 """
     get_ess(state::ParticleFilterState)
 
-Alias for `effective_sample_size`(@ref). Computes the effective sample size.
+Alias for [`effective_sample_size`](@ref). Computes the effective sample size.
 """
 get_ess(state::ParticleFilterView) = Gen.effective_sample_size(state)
 
@@ -104,7 +104,7 @@ end
 """
     get_lml_est(state::ParticleFilterState)
 
-Alias for `log_ml_estimate`(@ref). Returns the particle filter's current 
+Alias for [`log_ml_estimate`](@ref). Returns the particle filter's current 
 estimate of the log marginal likelihood.
 """
 get_lml_est(state::ParticleFilterView) = Gen.log_ml_estimate(state)

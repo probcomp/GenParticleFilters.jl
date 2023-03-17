@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+GenParticleFilters = "56b76ac4-72ef-411e-b419-6d312ed86a6f"
+
+[compat]
+Documenter = "0.27, 0.28"

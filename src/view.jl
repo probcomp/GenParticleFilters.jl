@@ -1,3 +1,18 @@
+@doc """
+    ParticleFilterState
+
+A data structure that represents the current state of a particle filter.
+"""
+ParticleFilterState
+
+"""
+    ParticleFilterSubState
+
+A data structure that represents a view into a subset of traces in a
+particle filter. If `state` is a [`ParticleFilterState`](@ref), then
+`state[idxs]` or `view(state, idxs)` can be used to construct a
+`ParticleFilterSubState` which only contains the traces at the specified `idxs`.
+"""
 struct ParticleFilterSubState{U,S,I,L}
     source::S
     traces::SubArray{U,1,Vector{U},I,L}
@@ -9,6 +24,11 @@ end
 Gen.get_traces(state::ParticleFilterSubState) = state.traces
 Gen.get_log_weights(state::ParticleFilterSubState) = state.log_weights
 
+"""
+    ParticleFilterView
+
+Union of `ParticleFilterState` and `ParticleFilterSubState`.
+"""
 const ParticleFilterView{U} =
     Union{ParticleFilterState{U}, ParticleFilterSubState{U}} where {U}
 

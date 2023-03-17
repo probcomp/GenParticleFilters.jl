@@ -1,12 +1,6 @@
 # GenParticleFilters.jl
 
-[![Documentation (Stable)](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/GenParticleFilters.jl/stable)
-[![Documentation (Latest)](https://img.shields.io/badge/docs-latest-blue.svg)](https://probcomp.github.io/GenParticleFilters.jl/dev)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/probcomp/GenParticleFilters.jl/CI.yml?branch=master)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/probcomp/GenParticleFilters.jl)
-![License](https://img.shields.io/github/license/probcomp/GenParticleFilters.jl?color=lightgrey)
-
-Building blocks for simple and advanced particle filtering in [Gen](https://www.gen.dev/), a general-purpose probabilistic programming system. Documentation is [available here](https://probcomp.github.io/GenParticleFilters.jl/).
+A library for simple and advanced particle filtering in [Gen](https://www.gen.dev/), a general-purpose probabilistic programming system.
 
 ## Installation
 
@@ -24,8 +18,7 @@ add https://github.com/probcomp/GenParticleFilters.jl.git
 
 In addition to basic particle filtering functionality (i.e., initializing a particle filter and updating it with new observations), this package provides support for:
 
-- Particle updates that allow discarding of old choices, provided that
-backward kernels are specified [[1]](#1)
+- Particle updates that allow discarding of old choices, provided that backward kernels are specified [[1]](#1)
 - Multiple resampling methods, including variance-reducing methods such as residual resampling [[2]](#2)
 - Custom priority weights for resampling, to control the aggressiveness of pruning [[3]](#3)
 - Metropolis-Hasting (i.e. move-accept) rejuvenation moves, to increase particle diversity [[4]](#4)
@@ -108,18 +101,29 @@ We see that the filter accurately infers a change in motion from `t=5` to `t=6`.
 
 ## References
 
-<a id="1">[1]</a> P. D. Moral, A. Doucet, and A. Jasra, “Sequential Monte Carlo samplers,” Journal of the Royal Statistical Society: Series B (Statistical Methodology), vol. 68, no. 3, pp. 411–436, 2006.
-
+```@raw html
+<p>
+<a id="1">[1]</a> P. D. Moral, A. Doucet, and A. Jasra, "Sequential Monte Carlo samplers," Journal of the Royal Statistical Society: Series B (Statistical Methodology), vol. 68, no. 3, pp. 411–436, 2006.
+</p>
+<p>
 <a id="2">[2]</a> R. Douc and O. Cappé, "Comparison of resampling schemes for particle filtering," in ISPA 2005. Proceedings of the 4th International Symposium on Image and Signal Processing and Analysis, 2005., 2005, pp. 64-69.
-
-<a id="3">[3]</a> R. Chen, “Sequential Monte Carlo methods and their applications,” in Markov Chain Monte Carlo, vol. Volume 7, 0 vols., Singapore University Press, 2005, pp. 147–182.
-
+</p>
+<p>
+<a id="3">[3]</a> R. Chen, "Sequential Monte Carlo methods and their applications," in Markov Chain Monte Carlo, vol. Volume 7, 0 vols., Singapore University Press, 2005, pp. 147–182.
+</p>
+<p>
 <a id="4">[4]</a> N. Chopin, “A sequential particle filter method for static models,” Biometrika 89.3, 2000, pp. 539-552.
-
+</p>
+<p>
 <a id="5">[5]</a> R. A. G. Marques and G. Storvik, "Particle move-reweighting strategies for online inference," Preprint series. Statistical Research Report, 2013.
-
+</p>
+<p>
 <a id="6">[6]</a> M. Cusumano-Towner, B. Bichsel, T. Gehr, M. Vechev, and V. K. Mansinghka, “Incremental inference for probabilistic programs,” in Proceedings of the 39th ACM SIGPLAN Conference on Programming Language Design and Implementation, Philadelphia PA USA, Jun. 2018, pp. 571–585.
-
+</p>
+<p>
 <a id="7">[7]</a> Lew, A. K., Matheos, G., Zhi-Xuan, T., Ghavamizadeh, M., Gothoskar, N., Russell, S., and Mansinghka, V. K. "SMCP3: Sequential Monte Carlo with Probabilistic Program Proposals." AISTATS, 2023.
-
+</p>
+<p>
 <a id="8">[8]</a> V. Elvira, J. Míguez and P. M. Djurić, "Adapting the Number of Particles in Sequential Monte Carlo Methods Through an Online Scheme for Convergence Assessment," in IEEE Transactions on Signal Processing, vol. 65, no. 7, pp. 1781-1794, 1 April 2017, doi: 10.1109/TSP.2016.2637324.
+</p>
+```
