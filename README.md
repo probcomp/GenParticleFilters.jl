@@ -30,6 +30,7 @@ backward kernels are specified [[1]](#1)
 - Move-reweight rejuvenation, which increases particle diversity while reweighting particles [[5]](#5)
 - Sequential Monte Carlo over a series of distinct models, via [trace translators](https://www.gen.dev/stable/ref/trace_translators/) [[6]](#6)
 - SMCP³, a method which generalizes [[1]](#1), [[5]](#5) and [[6]](#6) through particle updates that support auxiliary randomness and deterministic transformations  [[7]](#7)
+- Particle filter resizing methods, which can be used in online adaptation of the total number of particles [[8]](#8)
 - Utility functions to compute distributional statistics (e.g. mean and variance) for the inferred latent variables
 
 ## Example
@@ -118,3 +119,5 @@ We see that the filter accurately infers a change in motion from `t=5` to `t=6`.
 <a id="6">[6]</a> M. Cusumano-Towner, B. Bichsel, T. Gehr, M. Vechev, and V. K. Mansinghka, “Incremental inference for probabilistic programs,” in Proceedings of the 39th ACM SIGPLAN Conference on Programming Language Design and Implementation, Philadelphia PA USA, Jun. 2018, pp. 571–585.
 
 <a id="7">[7]</a> Lew, A. K., Matheos, G., Zhi-Xuan, T., Ghavamizadeh, M., Gothoskar, N., Russell, S., and Mansinghka, V. K. "SMCP3: Sequential Monte Carlo with Probabilistic Program Proposals." AISTATS, 2023.
+
+<a id="8">[8]</a> V. Elvira, J. Míguez and P. M. Djurić, "Adapting the Number of Particles in Sequential Monte Carlo Methods Through an Online Scheme for Convergence Assessment," in IEEE Transactions on Signal Processing, vol. 65, no. 7, pp. 1781-1794, 1 April 2017, doi: 10.1109/TSP.2016.2637324.
