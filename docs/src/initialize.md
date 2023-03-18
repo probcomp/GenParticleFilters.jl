@@ -23,3 +23,5 @@ To reduce variance, particle filters can also be initialized via stratified samp
 pf_initialize(model::GenerativeFunction, model_args::Tuple,
               observations::ChoiceMap, strata, n_particles::Int)
 ```
+
+For convenience, strata can be generated using the [`choiceproduct`](@ref) function.

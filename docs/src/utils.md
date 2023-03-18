@@ -56,3 +56,11 @@ var(f::Function, ::ParticleFilterView, addr, addrs...)
 proportionmap(::ParticleFilterView, addr)
 proportionmap(f::Function, ::ParticleFilterView, addr, addrs...)
 ```
+
+## Stratification
+
+To support the use of stratified sampling, the [`choiceproduct`](@ref) method can be used to conveniently generate a list of choicemap strata:
+
+```@docs
+choiceproduct
+```

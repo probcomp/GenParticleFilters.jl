@@ -54,3 +54,5 @@ All of the above methods can also be combined with stratified sampling. This can
 pf_update!(state::ParticleFilterView, new_args::Tuple, argdiffs::Tuple,
            observations::ChoiceMap, strata)
 ```
+
+For convenience, strata can be generated using the [`choiceproduct`](@ref) function.

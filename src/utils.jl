@@ -1,4 +1,5 @@
 ## Various utility functions ##
+export choiceproduct
 export get_log_norm_weights, get_norm_weights
 export effective_sample_size, get_ess
 export log_ml_estimate, get_lml_est
@@ -53,6 +54,49 @@ function stratified_map!(f::Function, n_total::Int, strata, args...;
         end
     end
     return nothing
+end
+
+"""
+    choiceproduct((addr, vals))
+    choiceproduct((addr, vals), choices::Tuple...)
+    choiceproduct(choices::Dict)
+
+Returns an iterator over `ChoiceMap`s given a tuple or sequence of tuples of
+the form  `(addr, vals)`, where `addr` specifies a choice address, and
+`vals` specifies a list of values for that address.
+    
+If multiple tuples are provided, the iterator will be a Cartesian product over
+the `(addr, vals)` pairs, where each resulting `ChoiceMap` contains all
+specified addresses. Instead of specifying multiple tuples, a dictionary mapping
+addresses to values can also be provided.
+
+# Examples
+
+This function can be used to conveniently generate `ChoiceMap`s for stratified
+sampling. For example, we can use `choiceproduct` instead of manually
+constructing a list of strata:
+
+```julia
+# Manual construction
+strata = [choicemap((:a,  1), (:b,  3)), choicemap((:a,  2), (:b,  3))]
+# Using choiceproduct
+strata = choiceproduct((:a, [1, 2]), (:b, [3]))
+```
+"""
+function choiceproduct(choices::Tuple...)
+    prod_iter = Iterators.product((((addr, v) for v in vals) for
+                                  (addr, vals) in choices)...)
+    return (choicemap(cs...) for cs in prod_iter)
+end
+
+function choiceproduct(choices::Dict)
+    prod_iter = Iterators.product((((addr, v) for v in vals) for
+                                  (addr, vals) in choices)...)
+    return (choicemap(cs...) for cs in prod_iter)
+end
+
+function choiceproduct((addr, vals)::Tuple)
+    return (choicemap((addr, v)) for v in vals)
 end
 
 lognorm(vs::AbstractVector) = vs .- logsumexp(vs)
