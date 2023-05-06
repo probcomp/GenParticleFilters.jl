@@ -48,9 +48,7 @@ function stratified_map!(f::Function, n_total::Int, strata, args...;
         remainder = sample(strata, n_remaining)
         for (k, stratum) in enumerate(remainder)
             i = n_total - n_remaining + k
-            for i in idxs
-                f(i, stratum, args...)
-            end
+            f(i, stratum, args...)
         end
     end
     return nothing
