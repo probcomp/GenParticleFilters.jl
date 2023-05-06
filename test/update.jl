@@ -2,9 +2,12 @@
 
 @testset "Update with default proposal" begin
     state = pf_initialize(line_model, (0,), choicemap(), 100)
-    state = pf_update!(state, (10,), (UnknownChange(),), line_choicemap(10))
-    @test all(tr[:line => 10 => :y] == 0 for tr in get_traces(state))
-    @test all(w != 0 for w in get_log_weights(state))
+    state = pf_update!(state, (1,), (UnknownChange(),), line_choicemap(1))
+    @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state))
+    outliers = [tr[:line => 1 => :outlier] for tr in get_traces(state)]
+    expected_ws = [logpdf(normal, 0.0, tr[:slope], o ? 10.0 : 1.0)
+                   for (o, tr) in zip(outliers, get_traces(state))]
+    @test all(get_log_weights(state) .≈ expected_ws)
 end
 
 @testset "Update with stratification" begin
@@ -17,8 +20,11 @@ end
     for (k, val) in zip([50, 100], [false, true])
         traces = get_traces(state[(k-50+1):k])
         @test all(tr[:line => 1 => :outlier] == val for tr in traces)
+        std = val ? 10.0 : 1.0
+        expected_ws = [(logpdf(bernoulli, val, 0.1) + log(2) +
+                        logpdf(normal, 0.0, tr[:slope], std)) for tr in traces]
+        @test all(get_log_weights(state[(k-50+1):k]) .≈ expected_ws)
     end
-    @test all(w != 0 for w in get_log_weights(state))
     # Test interleaved stratification
     state = pf_initialize(line_model, (0,), choicemap(), 100)
     state = pf_update!(state, (1,), (UnknownChange(),), observations,
@@ -26,8 +32,11 @@ end
     for (k, val) in zip(1:2, [false, true])
         traces = get_traces(state[k:2:100])
         @test all(tr[:line => 1 => :outlier] == val for tr in traces)
+        std = val ? 10.0 : 1.0
+        expected_ws = [(logpdf(bernoulli, val, 0.1) + log(2) +
+                        logpdf(normal, 0.0, tr[:slope], std)) for tr in traces]
+        @test all(get_log_weights(state[k:2:100]) .≈ expected_ws)
     end
-    @test all(w != 0 for w in get_log_weights(state))
 end
 
 @gen outlier_propose(tr, idxs) =

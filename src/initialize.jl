@@ -97,10 +97,12 @@ function pf_initialize(
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)
+    n_strata = length(strata)
     # Generate traces in a stratified manner
     stratified_map!(n_particles, strata; layout=layout) do i, stratum
         constraints = merge(stratum, observations)
         (traces[i], log_weights[i]) = generate(model, model_args, constraints)
+        log_weights[i] += log(n_strata)
     end
     return ParticleFilterState{V}(traces, Vector{V}(undef, n_particles),
                                   log_weights, 0., collect(1:n_particles))
@@ -115,11 +117,12 @@ function pf_initialize(
     V = dynamic ? Trace : U # Determine trace type for particle filter
     traces = Vector{V}(undef, n_particles)
     log_weights = Vector{Float64}(undef, n_particles)
+    n_strata = length(strata)
     stratified_map!(n_particles, strata; layout=layout) do i, stratum
         (prop_choices, prop_weight, _) = propose(proposal, proposal_args)
         constraints = merge(stratum, observations, prop_choices)
         (traces[i], model_weight) = generate(model, model_args, constraints)
-        log_weights[i] = model_weight - prop_weight
+        log_weights[i] = model_weight - prop_weight + log(n_strata)
     end
     return ParticleFilterState{V}(traces, Vector{V}(undef, n_particles),
                                   log_weights, 0., collect(1:n_particles))

@@ -195,6 +195,7 @@ function pf_update!(state::ParticleFilterView, new_args::Tuple,
                     layout=:interleaved)
     # Update traces in a stratified manner
     n_particles = length(state.traces)
+    n_strata = length(strata)
     stratified_map!(n_particles, strata; layout=layout) do i, stratum
         constraints = merge(stratum, observations)
         state.new_traces[i], increment, _, discard =
@@ -202,7 +203,7 @@ function pf_update!(state::ParticleFilterView, new_args::Tuple,
         if !isempty(discard)
             error("Choices were updated or deleted: $discard")
         end
-        state.log_weights[i] += increment    
+        state.log_weights[i] += increment + log(n_strata)
     end
     update_refs!(state)
     return state
@@ -215,11 +216,12 @@ function pf_update!(state::ParticleFilterView, translator::TraceTranslator,
     observations = translator.new_observations
     # Update traces in a stratified manner
     n_particles = length(state.traces)
+    n_strata = length(strata)
     stratified_map!(n_particles, strata; layout=layout) do i, stratum
         translator.new_observations = merge(stratum, observations)
         state.new_traces[i], log_weight =
             translator(state.traces[i]; translator_args...)
-        state.log_weights[i] += log_weight
+        state.log_weights[i] += log_weight + log(n_strata)
     end
     update_refs!(state)
     return state
