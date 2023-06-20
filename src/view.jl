@@ -21,6 +21,10 @@ struct ParticleFilterSubState{U,S,I,L}
     parents::SubArray{Int,1,Vector{Int},I,L}
 end
 
+# Unclear how one could copy a substate without copying the whole state.
+Base.copy(::ParticleFilterSubState) =
+    error("Cannot copy a particle filter substate. If needed, copy the whole particle filter state.")
+
 Gen.get_traces(state::ParticleFilterSubState) = state.traces
 Gen.get_log_weights(state::ParticleFilterSubState) = state.log_weights
 

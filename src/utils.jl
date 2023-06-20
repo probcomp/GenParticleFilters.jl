@@ -6,6 +6,17 @@ export log_ml_estimate, get_lml_est
 
 using Gen: effective_sample_size, log_ml_estimate, sample_unweighted_traces
 
+# Overwrite copy so that it copies the internal arrays as well.
+function Base.copy(state::ParticleFilterState{U}) where U
+    ParticleFilterState{U}(
+        copy(state.traces),
+        copy(state.new_traces),
+        copy(state.log_weights),
+        state.log_ml_est,
+        copy(state.parents)
+    )
+end
+
 "Replace traces with newly updated traces."
 @inline function update_refs!(state::ParticleFilterState)
     # Swap references
