@@ -8,8 +8,52 @@
 end
 
 @testset "ExtendingTraceTranslator" begin
+    # Construct trace translator with no proposal
+    translator = ExtendingTraceTranslator(
+        p_new_args=(1,),
+        new_observations=choicemap(((:y, 1), 0))
+    )
+    # Generate initial trace
+    trace, _ = generate(model, (0,))
+    for _ in 1:10
+        # Run trace translator
+        new_trace, log_weight = translator(trace; check=true)
+        # Manually compute expected weight
+        x, y = new_trace[(:x, 1)], new_trace[(:y, 1)]
+        obs_weight = logpdf(normal, y, x, 1)
+        expected = obs_weight
+        # Check if actual weight is equal to expected weight
+        @test log_weight ≈ expected
+    end
+
     # Define forward proposal
     @gen function proposal(trace, t::Int)
+        x = {(:x, t)} ~ normal(0, 2) # Proposal to next value of x
+    end
+    # Construct trace translator with custom proposal
+    translator = ExtendingTraceTranslator(
+        p_new_args=(1,),
+        new_observations=choicemap(((:y, 1), 0)),
+        q_forward=proposal,
+        q_forward_args=(1,)
+    )
+    # Generate initial trace
+    trace, _ = generate(model, (0,))
+    for _ in 1:10
+        # Run trace translator
+        new_trace, log_weight = translator(trace; check=true)
+        # Manually compute expected weight
+        x, y = new_trace[(:x, 1)], new_trace[(:y, 1)]
+        obs_weight = logpdf(normal, y, x, 1)
+        model_weight = logpdf(normal, x, 0, 1)
+        prop_weight = logpdf(normal, x, 0, 2)
+        expected = obs_weight + model_weight - prop_weight
+        # Check if actual weight is equal to expected weight
+        @test log_weight ≈ expected
+    end
+
+    # Define forward proposal whose variables will be transformed
+    @gen function proposal_w_transform(trace, t::Int)
         x ~ normal(0, 1) # Proposal to next value of x
     end
     # Define trace transform
@@ -18,11 +62,11 @@ end
         x = @read(q_fwd[:x], :continuous)
         @write(p_new[(:x, t)], 2*x, :continuous)
     end
-    # Construct trace translator
+    # Construct trace translator with proposal and transform
     translator = ExtendingTraceTranslator(
         p_new_args=(1,),
         new_observations=choicemap(((:y, 1), 0)),
-        q_forward=proposal,
+        q_forward=proposal_w_transform,
         q_forward_args=(1,),
         transform=transform_f
     )

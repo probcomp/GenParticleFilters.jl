@@ -16,7 +16,7 @@ end
         p_new_args::Tuple = (),
         p_argdiffs::Tuple = (),
         new_observations::ChoiceMap = EmptyChoiceMap(),
-        q_forward::GenerativeFunction,
+        q_forward::Union{Nothing,GenerativeFunction} = nothing,
         q_forward_args::Tuple = (),
         transform::Union{TraceTransformDSLProgram,Nothing} = nothing
     )
@@ -25,17 +25,22 @@ Constructor for an extending trace translator, which extends a trace by
 sampling new random choices from a forward proposal `q_forward`, optionally
 applying a trace `transform` to those choices, then updating the trace with
 the proposed (and transformed) choices, along with `new_observations`.
+
+If `q_forward` is not specified, random choices are sampled from the 
+default incremental proposal associated with the `update` method for the
+model's generative function.
 """
 @with_kw mutable struct ExtendingTraceTranslator{
     T <: Union{Nothing, TraceTransformDSLProgram},
-    PA <: Tuple, PD <: Tuple, Q <: GenerativeFunction, QA <: Tuple
+    PA <: Tuple, PD <: Tuple,
+    Q <: Union{Nothing, GenerativeFunction}, QA <: Tuple
 } <: TraceTranslator
     p_new_args::PA = ()
     p_argdiffs::PD = map((_) -> UnknownChange(), p_new_args)
     new_observations::ChoiceMap = EmptyChoiceMap()
-    q_forward::Q
+    q_forward::Q = nothing
     q_forward_args::QA = ()
-    transform::T = nothing # a bijection
+    transform::T = nothing
 end
 
 """
@@ -49,10 +54,10 @@ discarded as a result of updating the trace. This is recommended by default,
 but can be disabled to allow trace updates that replace previously constrained
 observations with different values.
 """
-function (translator::ExtendingTraceTranslator)(
+function (translator::ExtendingTraceTranslator{T, PA, PD, Q, QA})(
     prev_model_trace::Trace;
     check::Bool=true
-)
+) where {T <: TraceTransformDSLProgram, PA, PD, Q <: GenerativeFunction, QA}
     @unpack q_forward, q_forward_args = translator
     @unpack p_new_args, p_argdiffs, transform = translator
     # Simulate forward kernel
@@ -78,10 +83,10 @@ function (translator::ExtendingTraceTranslator)(
 end
 
 # Specialized implementation for the case where no transform is used
-function (translator::ExtendingTraceTranslator{Nothing})(
+function (translator::ExtendingTraceTranslator{Nothing, PA, PD, Q, QA})(
     prev_model_trace::Trace;
     check::Bool=true
-)
+) where {PA, PD, Q <: GenerativeFunction, QA}
     @unpack q_forward_args, p_new_args, p_argdiffs = translator
     # Simulate proposal
     fwd_choices, fwd_proposal_score, _ =
@@ -96,6 +101,21 @@ function (translator::ExtendingTraceTranslator{Nothing})(
     end
     # Compute the incremental importance weight
     log_weight = model_score_diff - fwd_proposal_score
+    return (new_model_trace, log_weight)
+end
+
+# Specialized implementation for the case where no proposal is used
+function (translator::ExtendingTraceTranslator{T, PA, PD, Nothing, QA})(
+    prev_model_trace::Trace;
+    check::Bool=true
+) where {T, PA, PD, QA}
+    @unpack p_new_args, p_argdiffs, new_observations = translator
+    # Compute the new trace via update
+    (new_model_trace, log_weight, _, discard) =
+        update(prev_model_trace, p_new_args, p_argdiffs, new_observations)
+    if check && !isempty(discard)
+        error("Choices were updated or deleted: $discard")
+    end
     return (new_model_trace, log_weight)
 end
 
