@@ -1,6 +1,7 @@
 ## Functions for resizing particle filters ##
 export pf_resize!, pf_multinomial_resize!, pf_residual_resize!
 export pf_replicate!, pf_dereplicate!
+export pf_introduce!
 
 """
     pf_resize!(state::ParticleFilterState, n_particles::Int,
@@ -62,7 +63,7 @@ end
 
 Resizes a particle filter through residual resampling of existing particles.
 For each particle with normalized weight ``w_i``, ``⌊n w_i⌋`` copies are
-resampled, w here ``n`` is `n_particles`. The remainder are sampled with
+resampled, where ``n`` is `n_particles`. The remainder are sampled with
 probability proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``.
 
 A `priority_fn` can be specified as a keyword argument, which maps log particle
@@ -182,6 +183,93 @@ function pf_dereplicate!(state::ParticleFilterState, n_replicates::Int;
     state.new_traces = state.traces[idxs]
     update_refs!(state, n_new)
     return state
+end
+
+"""
+    pf_introduce!(state::ParticleFilterState,
+                  [model::GenerativeFunction, model_args::Tuple,]
+                  observations::ChoiceMap, n_particles::Int)
+
+    pf_introduce!(state::ParticleFilterState,
+                  [model::GenerativeFunction, model_args::Tuple,]
+                  observations::ChoiceMap, proposal::GenerativeFunction,
+                  proposal_args::Tuple, n_particles::Int)
+
+Introduce `n_particles` new traces into a particle filter, constrained to the
+provided `observations`. If `model` and `model_args` are omitted, then
+this function will use the same model and arguments as the first trace in the
+particle filter. A custom `proposal` can be used to propose choices.
+"""
+function pf_introduce!(
+    state::ParticleFilterState,
+    model::Union{Nothing, GenerativeFunction},
+    model_args::Union{Nothing, Tuple},
+    observations::ChoiceMap,
+    n_particles::Int;
+) 
+    model = isnothing(model) ? get_gen_fn(state.traces[1]) : model
+    model_args = isnothing(model_args) ? get_args(state.traces[1]) : model_args
+    n_old = length(state.traces)
+    # Adjust weights of existing particles
+    if state.log_ml_est != 0.0
+        state.log_weights .+= state.log_ml_est
+        state.log_ml_est = 0.0
+    end
+    # Resize arrays
+    resize!(state.traces, n_old + n_particles)
+    resize!(state.log_weights, n_old + n_particles)
+    resize!(state.parents, n_old + n_particles)
+    resize!(state.new_traces, n_old + n_particles)
+    # Generate new traces
+    for i=1:n_particles
+        state.traces[n_old+i], state.log_weights[n_old+i] =
+            generate(model, model_args, observations)
+    end
+    return state
+end
+
+function pf_introduce!(state::ParticleFilterState, observations::ChoiceMap,
+                       n_particles::Int)
+    return pf_introduce!(state, nothing, nothing, observations, n_particles)
+end
+
+function pf_introduce!(
+    state::ParticleFilterState,
+    model::Union{Nothing, GenerativeFunction},
+    model_args::Union{Nothing, Tuple},
+    observations::ChoiceMap,
+    proposal::GenerativeFunction,
+    proposal_args::Tuple,
+    n_particles::Int;
+) 
+    model = isnothing(model) ? get_gen_fn(state.traces[1]) : model
+    model_args = isnothing(model_args) ? get_args(state.traces[1]) : model_args
+    n_old = length(state.traces)
+    # Adjust weights of existing particles
+    if state.log_ml_est != 0.0
+        state.log_weights .+= state.log_ml_est
+        state.log_ml_est = 0.0
+    end
+    # Resize arrays
+    resize!(state.traces, n_old + n_particles)
+    resize!(state.log_weights, n_old + n_particles)
+    resize!(state.parents, n_old + n_particles)
+    resize!(state.new_traces, n_old + n_particles)
+    # Generate new traces
+    for i=1:n_particles
+        (prop_choices, prop_weight, _) = propose(proposal, proposal_args)
+        (state.traces[n_old+i], model_weight) =
+            generate(model, model_args, merge(observations, prop_choices))
+        state.log_weights[n_old+i] = model_weight - prop_weight
+    end
+    return state
+end
+
+function pf_introduce!(state::ParticleFilterState, observations::ChoiceMap,
+                       proposal::GenerativeFunction, proposal_args::Tuple,
+                       n_particles::Int) 
+    return pf_introduce!(state, nothing, nothing, observations,
+                         proposal, proposal_args, n_particles)
 end
 
 "Update particle weights after a resizing step."

@@ -33,3 +33,9 @@ pf_replicate!
 ```@docs
 pf_dereplicate!
 ```
+
+## Particle introduction
+
+```@docs
+pf_introduce!
+```

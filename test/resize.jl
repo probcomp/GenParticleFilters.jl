@@ -178,4 +178,89 @@ end
     @test new_lml_est ≈ old_lml_est
 end
 
+@testset "Particle introduction (default proposal)" begin
+    # Test explicit specification of model and arguments
+    state = pf_initialize(line_model, (0,), choicemap(), 50)
+    state = pf_introduce!(state, line_model, (0,), choicemap(), 50)
+    @test length(get_traces(state)) == 100
+    @test all(-2 <= tr[:slope] <= 2 for tr in get_traces(state))
+    @test all(w ≈ 0 for w in get_log_weights(state))
+
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 50)
+    state = pf_introduce!(state, line_model, (10,), line_choicemap(10), 50)
+    @test length(get_traces(state)) == 100
+    @test all(tr[:line => 10 => :y] == 0 for tr in get_traces(state))
+
+    # Test implicit specification of model and arguments
+    state = pf_initialize(line_model, (0,), choicemap(), 50)
+    state = pf_introduce!(state, choicemap(), 50)
+    @test length(get_traces(state)) == 100
+    @test all(get_gen_fn(tr) === line_model for tr in get_traces(state))
+    @test all(get_args(tr) == (0,) for tr in get_traces(state))
+    @test all(-2 <= tr[:slope] <= 2 for tr in get_traces(state))
+    @test all(w ≈ 0 for w in get_log_weights(state))
+
+    state = pf_initialize(line_model, (10,), line_choicemap(10), 50)
+    state = pf_introduce!(state, line_choicemap(10), 50)
+    @test length(get_traces(state)) == 100
+    @test all(get_gen_fn(tr) === line_model for tr in get_traces(state))
+    @test all(get_args(tr) == (10,) for tr in get_traces(state))
+    @test all(tr[:line => 10 => :y] == 0 for tr in get_traces(state))
+end
+
+@testset "Particle introduction (custom proposal)" begin
+    @gen line_propose(s) =
+        slope ~ uniform_discrete(0, 0)
+    @gen outlier_propose(idxs) =
+        [{:line => i => :outlier} ~ bernoulli(0.0) for i in idxs]
+
+    # Test explicit specification of model and arguments
+    state = pf_initialize(line_model, (0,), choicemap(), line_propose, (0,), 50)
+    state = pf_introduce!(state, line_model, (0,), choicemap(),
+                          line_propose, (0,), 50)
+    @test all(tr[:slope] == 0 for tr in get_traces(state))
+    @test all(w ≈ log(1/5) for w in get_log_weights(state))
+
+    state = pf_initialize(line_model, (1,), line_choicemap(1),
+                          outlier_propose, ([1],), 50)
+    state = pf_introduce!(state, line_model, (1,), line_choicemap(1),
+                          outlier_propose, ([1],), 50)
+    @test all(tr[:line => 1 => :outlier] == false for tr in get_traces(state))
+    @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state))
+
+    state = pf_initialize(line_model, (10,), line_choicemap(10),
+                          outlier_propose, ([10],), 50)
+    state = pf_introduce!(state, line_model, (10,), line_choicemap(10),
+                          outlier_propose, ([10],), 50)
+    @test all(tr[:line => 10 => :outlier] == false for tr in get_traces(state))
+    @test all(tr[:line => 10 => :y] == 0 for tr in get_traces(state))
+
+    # Test implicit specification of model and arguments
+    state = pf_initialize(line_model, (0,), choicemap(), line_propose, (0,), 50)
+    state = pf_introduce!(state, choicemap(), line_propose, (0,), 50)
+    @test length(get_traces(state)) == 100
+    @test all(get_gen_fn(tr) === line_model for tr in get_traces(state))
+    @test all(get_args(tr) == (0,) for tr in get_traces(state))
+    @test all(tr[:slope] == 0 for tr in get_traces(state))
+    @test all(w ≈ log(1/5) for w in get_log_weights(state))
+
+    state = pf_initialize(line_model, (1,), line_choicemap(1),
+                          outlier_propose, ([1],), 50)
+    state = pf_introduce!(state, line_choicemap(1), outlier_propose, ([1],), 50)
+    @test length(get_traces(state)) == 100
+    @test all(get_gen_fn(tr) === line_model for tr in get_traces(state))
+    @test all(get_args(tr) == (1,) for tr in get_traces(state))
+    @test all(tr[:line => 1 => :outlier] == false for tr in get_traces(state))
+    @test all(tr[:line => 1 => :y] == 0 for tr in get_traces(state))
+
+    state = pf_initialize(line_model, (10,), line_choicemap(10),
+                          outlier_propose, ([10],), 50)
+    state = pf_introduce!(state, line_choicemap(10), outlier_propose, ([10],), 50)
+    @test length(get_traces(state)) == 100
+    @test all(get_gen_fn(tr) === line_model for tr in get_traces(state))
+    @test all(get_args(tr) == (10,) for tr in get_traces(state))
+    @test all(tr[:line => 10 => :outlier] == false for tr in get_traces(state))
+    @test all(tr[:line => 10 => :y] == 0 for tr in get_traces(state))
+end
+
 end
