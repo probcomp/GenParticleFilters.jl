@@ -130,7 +130,8 @@ https://doi.org/10.1111/1467-9868.00421
 function pf_optimal_resize!(state::ParticleFilterState, n_particles::Int;
                             kwargs...)
     # Resize arrays
-    @assert n_particles <= length(state.traces)
+    n_old = length(state.traces)
+    @assert n_particles <= n_old
     resize!(state.parents, n_particles)
     resize!(state.new_traces, n_particles)
     # Normalize weights and compute inverse weight threshold
@@ -163,12 +164,13 @@ function pf_optimal_resize!(state::ParticleFilterState, n_particles::Int;
     @assert length(resample_idxs) == n_resample
     state.parents[n_keep+1:n_particles] .= resample_idxs
     # Update weights
+    log_n_ratio = log(n_particles) - log(n_old)
     log_tot_weight = logsumexp(state.log_weights)
     keep_log_weights = state.log_weights[keep_idxs]
     resample_log_weight = log_tot_weight - log(inv_w_thresh)
     resize!(state.log_weights, n_particles)
-    state.log_weights[1:n_keep] .= keep_log_weights
-    state.log_weights[n_keep+1:n_particles] .= resample_log_weight
+    state.log_weights[1:n_keep] .= keep_log_weights .+ log_n_ratio
+    state.log_weights[n_keep+1:n_particles] .= resample_log_weight .+ log_n_ratio
     # Update trace references
     state.new_traces .= view(state.traces, state.parents)
     update_refs!(state, n_particles)

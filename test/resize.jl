@@ -67,6 +67,28 @@ end
     end
 end
 
+@testset "Optimal resizing" begin
+    # Test optimal resampling of all particles
+    for n_particles in [25, 50]
+        state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
+        old_traces = copy(get_traces(state))
+        old_lml_est = get_lml_est(state)
+        weights = GenParticleFilters.softmax(state.log_weights)
+        thresh = GenParticleFilters.find_inv_w_threshold(weights, n_particles)
+        keep_idxs = findall(thresh .* weights .>= 1)
+        keep_log_weights = state.log_weights[keep_idxs]
+        n_keep = length(keep_idxs)
+        log_n_ratio = log(n_particles) - log(100)    
+        state = pf_resize!(state, n_particles, :optimal)
+        new_traces = get_traces(state)
+        new_lml_est = get_lml_est(state)
+        @test length(new_traces) == n_particles
+        @test new_traces == old_traces[state.parents]
+        @test state.log_weights[1:n_keep] ≈ keep_log_weights .+ log_n_ratio
+        @test new_lml_est ≈ old_lml_est
+    end
+end
+
 @testset "Particle replication" begin
     slope_strata = (slope_choicemap(s) for s in -2:1:2)
     observations = line_choicemap(1)
