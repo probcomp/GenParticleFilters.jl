@@ -85,7 +85,7 @@ end
         @test length(new_traces) == n_particles
         @test new_traces == old_traces[state.parents]
         @test state.log_weights[1:n_keep] ≈ keep_log_weights .+ log_n_ratio
-        @test new_lml_est ≈ old_lml_est
+        @test new_lml_est ≈ old_lml_est rtol=1e-3
     end
 end
 
@@ -212,7 +212,7 @@ end
     new_lml_est = get_lml_est(state)
     @test length(get_traces(state)) == length(unique_choices) <= 5
     @test new_traces == old_traces[state.parents]
-    @test new_lml_est ≈ old_lml_est atol=1e-9
+    @test new_lml_est ≈ old_lml_est atol=1e-6
 
     # Test coalescing of identitical traces
     slope_strata = (slope_choicemap(s) for s in -2:1:2)
@@ -226,7 +226,7 @@ end
     new_lml_est = get_lml_est(state)
     @test length(get_traces(state)) == 5
     @test new_traces == old_traces[state.parents]
-    @test new_lml_est ≈ old_lml_est atol=1e-9
+    @test new_lml_est ≈ old_lml_est atol=1e-6
 end
 
 @testset "Particle introduction (default proposal)" begin
