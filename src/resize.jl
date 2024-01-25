@@ -189,7 +189,7 @@ function find_inv_w_threshold(weights, n_particles::Int)
             return (n_particles - A) / B
         end
     end
-    return float(n_particles)    
+    return float(n_particles)
 end
 
 """
@@ -267,6 +267,37 @@ function pf_dereplicate!(state::ParticleFilterState, n_replicates::Int;
     state.parents = collect(idxs)
     state.new_traces = state.traces[idxs]
     update_refs!(state, n_new)
+    return state
+end
+
+"""
+    pf_coalesce!(state::ParticleFilterState; by=get_choices)
+
+Coalesces traces that are equivalent according to `by` (defaulting to
+`get_choices`). Each set of equivalent traces is replaced by a single trace with 
+weight equal to the sum of the original weights.
+"""
+function pf_coalesce!(state::ParticleFilterState; by=get_choices)
+    if isempty(state.traces) return state end
+    # Apply transformation to traces
+    vals = by === identity ? state.traces : [by(tr) for tr in state.traces]
+    # Combine weights and extract indices for equivalent traces
+    coalesced_idxs = Dict{eltype(vals), Int}()
+    coalesced_weights = zeros(length(state.traces))
+    for (idx, (v, w)) in enumerate(zip(vals, state.log_weights))
+        idx = get!(coalesced_idxs, v, idx)
+        coalesced_weights[idx] = logsumexp(coalesced_weights[idx], w)
+    end
+    # Update weights and new traces
+    n_particles = length(coalesced_idxs)
+    for (new_idx, old_idx) in enumerate(values(coalesced_idxs))
+        state.parents[new_idx] = old_idx
+        state.new_traces[new_idx] = state.traces[old_idx]
+        state.log_weights[new_idx] = coalesced_weights[old_idx]
+    end
+    resize!(state.log_weights, n_particles)
+    resize!(state.new_traces, n_particles)
+    update_refs!(state, n_particles)
     return state
 end
 

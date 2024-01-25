@@ -40,6 +40,12 @@ pf_replicate!
 pf_dereplicate!
 ```
 
+## Particle coalescing
+
+```@docs
+pf_coalesce!
+```
+
 ## Particle introduction
 
 ```@docs
