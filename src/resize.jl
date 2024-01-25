@@ -9,7 +9,7 @@ export pf_introduce!
 
 Resizes a particle filter by resampling existing particles until a total of 
 `n_particles` have been sampled. The resampling method can optionally be
-specified: `:multinomial` (default) or `:residual`.
+specified: `:multinomial` (default), `:residual` or `:optimal`.
 
 A `priority_fn` can also be specified as a keyword argument, which maps log
 particle weights to custom log priority scores for the purpose of resampling
@@ -21,6 +21,8 @@ function pf_resize!(state::ParticleFilterState, n_particles::Int,
         return pf_multinomial_resize!(state, n_particles; kwargs...)
     elseif method == :residual
         return pf_residual_resize!(state, n_particles; kwargs...)
+    elseif method == :optimal
+        return pf_optimal_resize!(state, n_particles; kwargs...)
     else
         error("Resampling method $method not recognized.")
     end
@@ -105,6 +107,89 @@ function pf_residual_resize!(state::ParticleFilterState, n_particles::Int;
     update_weights!(state, n_particles, log_priorities)
     update_refs!(state, n_particles)
     return state
+end
+
+"""
+    pf_optimal_resize!(state::ParticleFilterState, n_particles::Int;
+                       kwargs...)
+
+Resizes a particle filter through the optimal resampling algorithm for 
+Fearnhead and Clifford [1]. This guarantees that each resampled particle is 
+unique as long as all of the original particles are unique, while minimizing 
+the variance of the resulting weight distribution with respect to the original
+weight distribution. Note that `n_particles` should not be greater than the
+current number of particles.
+
+[1] Paul Fearnhead , Peter Clifford, On-Line Inference for Hidden Markov Models
+via Particle Filters, Journal of the Royal Statistical Society Series B:
+Statistical Methodology, Volume 65, Issue 4, November 2003, Pages 887–899,
+https://doi.org/10.1111/1467-9868.00421
+"""
+function pf_optimal_resize!(state::ParticleFilterState, n_particles::Int;
+                            kwargs...)
+    # Resize arrays
+    @assert n_particles <= length(state.traces)
+    resize!(state.parents, n_particles)
+    resize!(state.new_traces, n_particles)
+    # Normalize weights and compute inverse weight threshold
+    weights = softmax(state.log_weights)
+    inv_w_thresh = find_inv_w_threshold(weights, n_particles)
+    # Find particles to keep deterministically vs. resample with stratification
+    keep_idxs = (inv_w_thresh .* weights .>= 1)
+    strat_idxs = .!(keep_idxs)
+    # Keep selected indices
+    keep_idxs = findall(keep_idxs)
+    n_keep = length(keep_idxs)
+    state.parents[1:n_keep] .= keep_idxs
+    # Perform stratified resampling on remaining indices
+    n_resample = n_particles - n_keep
+    resample_idxs = Int[]
+    strat_idxs = findall(strat_idxs)
+    n_strat = length(strat_idxs)
+    norm_strat_weights = softmax(state.log_weights[strat_idxs])
+    # Compute resampled indices
+    step_size = 1 / n_resample
+    u = rand() * step_size
+    for i in 1:n_strat
+        u = u - norm_strat_weights[i]
+        if u < 0
+            push!(resample_idxs, strat_idxs[i])
+            u += step_size
+        end
+    end
+    # Keep resampled indices
+    @assert length(resample_idxs) == n_resample
+    state.parents[n_keep+1:n_particles] .= resample_idxs
+    # Update weights
+    log_tot_weight = logsumexp(state.log_weights)
+    keep_log_weights = state.log_weights[keep_idxs]
+    resample_log_weight = log_tot_weight - log(inv_w_thresh)
+    resize!(state.log_weights, n_particles)
+    state.log_weights[1:n_keep] .= keep_log_weights
+    state.log_weights[n_keep+1:n_particles] .= resample_log_weight
+    # Update trace references
+    state.new_traces .= view(state.traces, state.parents)
+    update_refs!(state, n_particles)
+    return state
+end
+
+"Finds inverse weight threshold for optimal particle filter resizing."
+function find_inv_w_threshold(weights, n_particles::Int)
+    weights = sort(weights)
+    # Find threshold weight κ
+    A = length(weights) # Number of weights greater than κ so far
+    B = 0.0 # Sum of weights less than or equal to κ so far
+    for κ in weights
+        A -= 1
+        B += κ
+        # Check that κ meets the threshold condition
+        n_check = B / κ + A 
+        if n_check <= n_particles + eps(n_check)
+            # Return inverse weight c such that B * c + A = N exactly
+            return (n_particles - A) / B
+        end
+    end
+    return float(n_particles)    
 end
 
 """

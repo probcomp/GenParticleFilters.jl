@@ -22,6 +22,12 @@ pf_multinomial_resize!
 pf_residual_resize!
 ```
 
+## Resizing via optimal resampling
+
+```@docs
+pf_optimal_resize!
+```
+
 ## Particle replication
 
 ```@docs
