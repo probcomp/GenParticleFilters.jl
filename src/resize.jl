@@ -1,6 +1,8 @@
 ## Functions for resizing particle filters ##
-export pf_resize!, pf_multinomial_resize!, pf_residual_resize!
+export pf_resize!
+export pf_multinomial_resize!, pf_residual_resize!, pf_optimal_resize!
 export pf_replicate!, pf_dereplicate!
+export pf_coalesce!
 export pf_introduce!
 
 """
