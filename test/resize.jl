@@ -200,6 +200,35 @@ end
     @test new_lml_est ≈ old_lml_est
 end
 
+@testset "Particle coalescing" begin
+    # Test coalescing of choicemap-equivalent traces
+    observations = merge(line_choicemap(1), outlier_choicemap(1, false))
+    state = pf_initialize(line_model, (1,), observations, 100)
+    unique_choices = unique(get_choices, get_traces(state))
+    old_lml_est = get_lml_est(state)
+    old_traces = copy(get_traces(state))
+    state = pf_coalesce!(state, by=get_choices)
+    new_traces = get_traces(state)
+    new_lml_est = get_lml_est(state)
+    @test length(get_traces(state)) == length(unique_choices) <= 5
+    @test new_traces == old_traces[state.parents]
+    @test new_lml_est ≈ old_lml_est atol=1e-9
+
+    # Test coalescing of identitical traces
+    slope_strata = (slope_choicemap(s) for s in -2:1:2)
+    observations = merge(line_choicemap(1), outlier_choicemap(1, false))
+    state = pf_initialize(line_model, (1,), observations, slope_strata, 5)
+    state = pf_replicate!(state, 20; layout=:contiguous)
+    old_lml_est = get_lml_est(state)
+    old_traces = copy(get_traces(state))
+    state = pf_coalesce!(state, by=identity)
+    new_traces = get_traces(state)
+    new_lml_est = get_lml_est(state)
+    @test length(get_traces(state)) == 5
+    @test new_traces == old_traces[state.parents]
+    @test new_lml_est ≈ old_lml_est atol=1e-9
+end
+
 @testset "Particle introduction (default proposal)" begin
     # Test explicit specification of model and arguments
     state = pf_initialize(line_model, (0,), choicemap(), 50)
