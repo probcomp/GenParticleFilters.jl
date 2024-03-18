@@ -99,10 +99,44 @@ end
 
 lognorm(vs::AbstractVector) = vs .- logsumexp(vs)
 
+"Computes the softmax of a vector of (unnormalized) log probabilities."
 function softmax(vs::AbstractVector{T}) where {T <: Real}
-    if isempty(vs) return T[] end
+    isempty(vs) && return T[]
     ws = exp.(vs .- maximum(vs))
     return ws ./ sum(ws)
+end
+
+"""
+    probs, invalid = safe_softmax(vs; warn::Bool=true)
+
+Returns the softmax of a vector of (unnormalized) log probabilities, and
+a boolean indicating whether the result is invalid. Invalid outputs can occur if 
+`vs` contains any `NaN` values, or if all weights sum to zero. Warning messages
+are printed if `warn` is `true`.
+"""
+function safe_softmax(vs::AbstractVector{T}; warn::Bool=true) where {T <: Real}
+    isempty(vs) && return T[]
+    if any(isnan, vs)
+        warn && @warn("NaN found in input values. Returning NaN weights.")
+        ws = fill(convert(float(T), NaN), length(vs))
+        return (ws, true)
+    elseif all(==(-Inf), vs)
+        warn && @warn("All input values are -Inf. Returning uniform weights.")
+        ws = ones(float(T), length(vs)) ./ length(vs)
+        return (ws, true)
+    end
+    ws = exp.(vs .- maximum(vs))
+    total_w = sum(ws)
+    if iszero(total_w)
+        warn && @warn("All weights are zero. Returning uniform weights.")
+        ws = ones(float(T), length(vs)) ./ length(vs)
+        return (ws, true)
+    elseif isnan(total_w)
+        warn && @warn("Total weight is NaN. Returning NaN weights.")
+        ws = fill(convert(float(T), NaN), length(vs))
+        return (ws, true)
+    end
+    return (ws ./ sum(ws), false)
 end
 
 """

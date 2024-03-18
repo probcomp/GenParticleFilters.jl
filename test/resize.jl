@@ -27,6 +27,14 @@
         @test new_traces == old_traces[state.parents]
         @test new_lml_est ≈ old_lml_est
     end
+
+    # Test resampling with invalid weights
+    with_logger(Logging.SimpleLogger(Logging.Error)) do
+        state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
+        @test_throws ErrorException pf_multinomial_resize!(state, 50, check=true)
+        state = pf_multinomial_resize!(state, 50, check=false)
+        @test all(iszero, get_log_weights(state))
+    end
 end
 
 @testset "Residual resizing" begin
@@ -65,6 +73,14 @@ end
         new_lml_est = get_lml_est(state)
         @test new_lml_est ≈ old_lml_est
     end
+
+    # Test resampling with invalid weights
+    with_logger(Logging.SimpleLogger(Logging.Error)) do
+        state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
+        @test_throws ErrorException pf_residual_resize!(state, 50, check=true)
+        state = pf_residual_resize!(state, 50, check=false)
+        @test all(iszero, get_log_weights(state))
+    end
 end
 
 @testset "Optimal resizing" begin
@@ -86,6 +102,14 @@ end
         @test new_traces == old_traces[state.parents]
         @test state.log_weights[1:n_keep] ≈ keep_log_weights .+ log_n_ratio
         @test new_lml_est ≈ old_lml_est rtol=1e-3
+    end
+
+    # Test resampling with invalid weights
+    with_logger(Logging.SimpleLogger(Logging.Error)) do
+        state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
+        @test_throws ErrorException pf_optimal_resize!(state, 50, check=true)
+        state = pf_optimal_resize!(state, 50, check=false)
+        @test all(==(-Inf), get_log_weights(state))
     end
 end
 

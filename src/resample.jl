@@ -12,10 +12,6 @@ The resampling method can optionally be specified: `:multinomial` (default),
 `:residual`, or `:stratified`. See [1] for a survey of resampling methods
 and their variance properties.
 
-A `priority_fn` can also be specified as a keyword argument, which maps log
-particle weights to custom log priority scores for the purpose of resampling
-(e.g. `w -> w/2` for less aggressive pruning).
-
 [1] R. Douc and O. Cappé, "Comparison of resampling schemes
 for particle filtering," in ISPA 2005. Proceedings of the 4th International
 Symposium on Image and Signal Processing and Analysis, 2005., 2005, pp. 64–69.
@@ -40,19 +36,26 @@ Performs multinomial resampling (i.e. simple random resampling) of the
 particles in the filter. Each trace (i.e. particle) is resampled with
 probability proportional to its weight.
 
-A `priority_fn` can be specified as a keyword argument, which maps log particle
-weights to custom log priority scores for the purpose of resampling
-(e.g. `w -> w/2` for less aggressive pruning).
+# Keyword Arguments
+
+- `priority_fn = nothing`: An optional function that maps particle weights to
+  custom log priority scores (e.g. `w -> w/2` for less aggressive pruning).
+- `check = :warn`: Set to `true` to throw an error for invalid normalized
+   weights (all NaNs or zeros), `:warn` to issue warnings, or `false` to
+   suppress checks. In the latter two cases, zero weights will be renormalized
+   to uniform weights for resampling.
 """
 function pf_multinomial_resample!(state::ParticleFilterView;
-                                  priority_fn=nothing)
-    # Update estimate of log marginal likelihood
-    update_lml_est!(state)
+                                  priority_fn=nothing, check=:warn)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
+    # Normalize weights and check their validity
+    weights, invalid = safe_softmax(log_priorities, warn = (check != false))
+    check == true && invalid && error("Invalid weights.")
+    # Update estimate of log marginal likelihood
+    update_lml_est!(state)
     # Resample new traces according to current normalized weights
-    weights = softmax(log_priorities)
     rand!(Categorical(weights), state.parents)
     state.new_traces .= view(state.traces, state.parents)
     # Reweight particles and update trace references
@@ -70,21 +73,28 @@ normalized weight ``w_i``, ``⌊n w_i⌋`` copies are resampled, where ``n`` is 
 total number of particles. The remainder are sampled with probability
 proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``.
 
-A `priority_fn` can be specified as a keyword argument, which maps log particle
-weights to custom log priority scores for the purpose of resampling
-(e.g. `w -> w/2` for less aggressive pruning).
+# Keyword Arguments
+
+- `priority_fn = nothing`: An optional function that maps particle weights to
+  custom log priority scores (e.g. `w -> w/2` for less aggressive pruning).
+- `check = :warn`: Set to `true` to throw an error for invalid normalized
+   weights (all NaNs or zeros), `:warn` to issue warnings, or `false` to
+   suppress checks. In the latter two cases, zero weights will be renormalized
+   to uniform weights for resampling.
 """
 function pf_residual_resample!(state::ParticleFilterView;
-                               priority_fn=nothing)
-    # Update estimate of log marginal likelihood
-    update_lml_est!(state)
+                               priority_fn=nothing, check=:warn)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
+    # Normalize weights and check their validity
+    weights, invalid = safe_softmax(log_priorities, warn = (check != false))
+    check == true && invalid && error("Invalid weights.")
+    # Update estimate of log marginal likelihood
+    update_lml_est!(state)
     # Deterministically copy previous particles according to their weights
     n_resampled = 0
     n_particles = length(state.traces)
-    weights = softmax(log_priorities)
     for (i, w) in enumerate(weights)
         n_copies = floor(Int, n_particles * w)
         if n_copies == 0 continue end
@@ -119,20 +129,28 @@ where ``n`` is the number of particles. Then, given the cumulative normalized
 weights ``W_k = Σ_{j=1}^{k} w_j ``, sample the ``k``th particle for each ``u_i``
 where ``W_{k-1} ≤ u_i < W_k``.
 
-A `priority_fn` can be specified as a keyword argument, which maps log particle
-weights to custom log priority scores for the purpose of resampling
-(e.g. `w -> w/2` for less aggressive pruning). The `sort_particles` keyword
-argument controls whether particles are sorted by weight before stratification
-(default: true).
+# Keyword Arguments
+
+- `priority_fn = nothing`: An optional function that maps particle weights to
+  custom log priority scores (e.g. `w -> w/2` for less aggressive pruning).
+- `check = :warn`: Set to `true` to throw an error for invalid normalized
+   weights (all NaNs or zeros), `:warn` to issue warnings, or `false` to
+   suppress checks. In the latter two cases, zero weights will be renormalized
+   to uniform weights for resampling.
+- `sort_particles = true`: Set to `true` to sort particles by weight before
+   stratification.
 """
 function pf_stratified_resample!(state::ParticleFilterView;
-                                 priority_fn=nothing, sort_particles::Bool=true)
-    # Update estimate of log marginal likelihood
-    update_lml_est!(state)
+                                 priority_fn=nothing, check=:warn,
+                                 sort_particles::Bool=true)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
-    weights = softmax(log_priorities)
+    # Normalize weights and check their validity
+    weights, invalid = safe_softmax(log_priorities, warn = (check != false))
+    check == true && invalid && error("Invalid weights.")
+    # Update estimate of log marginal likelihood
+    update_lml_est!(state)
     # Optionally sort particles by weight before resampling
     n_particles = length(state.traces)
     order = sort_particles ?

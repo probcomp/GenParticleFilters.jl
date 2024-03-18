@@ -12,10 +12,6 @@ export pf_introduce!
 Resizes a particle filter by resampling existing particles until a total of 
 `n_particles` have been sampled. The resampling method can optionally be
 specified: `:multinomial` (default), `:residual` or `:optimal`.
-
-A `priority_fn` can also be specified as a keyword argument, which maps log
-particle weights to custom log priority scores for the purpose of resampling
-(e.g. `w -> w/2` for less aggressive pruning).
 """
 function pf_resize!(state::ParticleFilterState, n_particles::Int,
                     method::Symbol=:multinomial; kwargs...)
@@ -38,22 +34,30 @@ Resizes a particle filter through multinomial resampling (i.e. simple random
 resampling) of existing particles until `n_particles` are sampled. Each trace
 (i.e. particle) is resampled with probability proportional to its weight.
 
-A `priority_fn` can be specified as a keyword argument, which maps log particle
-weights to custom log priority scores for the purpose of resampling
-(e.g. `w -> w/2` for less aggressive pruning).
+# Keyword Arguments
+
+- `priority_fn = nothing`: An optional function that maps particle weights to
+  custom log priority scores (e.g. `w -> w/2` for less aggressive pruning).
+- `check = :warn`: Set to `true` to throw an error for invalid normalized
+   weights (all NaNs or zeros), `:warn` to issue warnings, or `false` to
+   suppress checks. In the latter two cases, zero weights will be renormalized
+   to uniform weights for resampling.
 """
 function pf_multinomial_resize!(state::ParticleFilterState, n_particles::Int;
-                                priority_fn=nothing)
-    # Update estimate of log marginal likelihood
-    update_lml_est!(state)
+                                priority_fn=nothing, check=:warn)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
+    # Normalize weights and check their validity
+    weights = softmax(log_priorities)
+    weights, invalid = safe_softmax(log_priorities, warn = (check != false))
+    check == true && invalid && error("Invalid weights.")
+    # Update estimate of log marginal likelihood
+    update_lml_est!(state)
     # Resize arrays
     resize!(state.parents, n_particles)
     resize!(state.new_traces, n_particles)
     # Resample new traces according to current normalized weights
-    weights = softmax(log_priorities)
     rand!(Categorical(weights), state.parents)
     state.new_traces .= view(state.traces, state.parents)
     # Reweight particles and update trace references
@@ -63,30 +67,38 @@ function pf_multinomial_resize!(state::ParticleFilterState, n_particles::Int;
 end
 
 """
-    pf_residual_resize!(state::ParticleFilterState, n_particles::Int; kwargs...)
+    pf_residual_resize!(state::ParticleFilterState, n_particles::Int;
+                        kwargs...)
 
 Resizes a particle filter through residual resampling of existing particles.
 For each particle with normalized weight ``w_i``, ``⌊n w_i⌋`` copies are
 resampled, where ``n`` is `n_particles`. The remainder are sampled with
 probability proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``.
 
-A `priority_fn` can be specified as a keyword argument, which maps log particle
-weights to custom log priority scores for the purpose of resampling
-(e.g. `w -> w/2` for less aggressive pruning).
+# Keyword Arguments
+
+- `priority_fn = nothing`: An optional function that maps particle weights to
+  custom log priority scores (e.g. `w -> w/2` for less aggressive pruning).
+- `check = :warn`: Set to `true` to throw an error for invalid normalized
+   weights (all NaNs or zeros), `:warn` to issue warnings, or `false` to
+   suppress checks. In the latter two cases, zero weights will be renormalized
+   to uniform weights for resampling.
 """
 function pf_residual_resize!(state::ParticleFilterState, n_particles::Int;
-                             priority_fn=nothing)
-    # Update estimate of log marginal likelihood
-    update_lml_est!(state)
+                             priority_fn=nothing, check=:warn)
     # Compute priority scores if priority function is provided
     log_priorities = priority_fn === nothing ?
         state.log_weights : priority_fn.(state.log_weights)
+    # Normalize weights and check their validity
+    weights, invalid = safe_softmax(log_priorities, warn = (check != false))
+    check == true && invalid && error("Invalid weights.")
+    # Update estimate of log marginal likelihood
+    update_lml_est!(state)
     # Resize arrays
     resize!(state.parents, n_particles)
     resize!(state.new_traces, n_particles)
     # Deterministically copy previous particles according to their weights
     n_resampled = 0
-    weights = softmax(log_priorities)
     for (i, w) in enumerate(weights)
         n_copies = floor(Int, n_particles * w)
         if n_copies == 0 continue end
@@ -122,34 +134,38 @@ the variance of the resulting weight distribution with respect to the original
 weight distribution. Note that `n_particles` should not be greater than the
 current number of particles.
 
+# Keyword Arguments
+
+- `check = :warn`: Set to `true` to throw an error for invalid normalized
+   weights (all NaNs or zeros), `:warn` to issue warnings, or `false` to
+   suppress checks. In the latter two cases, zero weights will be renormalized
+   to uniform weights for resampling.
+
 [1] Paul Fearnhead , Peter Clifford, On-Line Inference for Hidden Markov Models
 via Particle Filters, Journal of the Royal Statistical Society Series B:
 Statistical Methodology, Volume 65, Issue 4, November 2003, Pages 887–899,
 https://doi.org/10.1111/1467-9868.00421
 """
 function pf_optimal_resize!(state::ParticleFilterState, n_particles::Int;
-                            kwargs...)
-    # Resize arrays
-    n_old = length(state.traces)
-    @assert n_particles <= n_old
-    resize!(state.parents, n_particles)
-    resize!(state.new_traces, n_particles)
-    # Normalize weights and compute inverse weight threshold
-    weights = softmax(state.log_weights)
-    inv_w_thresh = find_inv_w_threshold(weights, n_particles)
+                            check = :warn, kwargs...)
+    # Normalize weights and check their validity
+    weights, invalid = safe_softmax(state.log_weights, warn = (check != false))
+    check == true && invalid && error("Invalid weights.")
     # Find particles to keep deterministically vs. resample with stratification
+    inv_w_thresh = find_inv_w_threshold(weights, n_particles)
     keep_idxs = (inv_w_thresh .* weights .>= 1)
     strat_idxs = .!(keep_idxs)
     # Keep selected indices
     keep_idxs = findall(keep_idxs)
     n_keep = length(keep_idxs)
-    state.parents[1:n_keep] .= keep_idxs
-    # Perform stratified resampling on remaining indices
+    # Perform stratified resampling on unselected indices
     n_resample = n_particles - n_keep
     resample_idxs = Int[]
     strat_idxs = findall(strat_idxs)
     n_strat = length(strat_idxs)
-    norm_strat_weights = softmax(state.log_weights[strat_idxs])
+    norm_strat_weights, invalid =
+        safe_softmax(state.log_weights[strat_idxs], warn = (check != false))
+    check == true && invalid && error("Invalid weights.")
     # Compute resampled indices
     step_size = 1 / n_resample
     u = rand() * step_size
@@ -160,9 +176,15 @@ function pf_optimal_resize!(state::ParticleFilterState, n_particles::Int;
             u += step_size
         end
     end
-    # Keep resampled indices
+    # Assign parent indices
+    state.parents[1:n_keep] .= keep_idxs
     @assert length(resample_idxs) == n_resample
     state.parents[n_keep+1:n_particles] .= resample_idxs
+    # Resize arrays
+    n_old = length(state.traces)
+    @assert n_particles <= n_old
+    resize!(state.parents, n_particles)
+    resize!(state.new_traces, n_particles)
     # Update weights
     log_n_ratio = log(n_particles) - log(n_old)
     log_tot_weight = logsumexp(state.log_weights)
