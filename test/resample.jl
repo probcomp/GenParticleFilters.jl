@@ -23,7 +23,7 @@
     @test new_lml_est ≈ old_lml_est
 
     # Test resampling with invalid weights
-    with_logger(Logging.SimpleLogger(Logging.Error)) do
+    with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
         state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
         @test_throws ErrorException pf_multinomial_resample!(state, check=true)
         state = pf_multinomial_resample!(state, check=false)
@@ -70,7 +70,7 @@ end
     @test new_lml_est ≈ old_lml_est
 
     # Test resampling with invalid weights
-    with_logger(Logging.SimpleLogger(Logging.Error)) do
+    with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
         state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
         @test_throws ErrorException pf_residual_resample!(state, check=true)
         state = pf_residual_resample!(state, check=false)
@@ -119,7 +119,7 @@ end
     @test new_lml_est ≈ old_lml_est
 
     # Test resampling with invalid weights
-    with_logger(Logging.SimpleLogger(Logging.Error)) do
+    with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
         state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
         @test_throws ErrorException pf_stratified_resample!(state, check=true)
         state = pf_stratified_resample!(state, check=false)

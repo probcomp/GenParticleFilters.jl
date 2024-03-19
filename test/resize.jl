@@ -29,7 +29,7 @@
     end
 
     # Test resampling with invalid weights
-    with_logger(Logging.SimpleLogger(Logging.Error)) do
+    with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
         state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
         @test_throws ErrorException pf_multinomial_resize!(state, 50, check=true)
         state = pf_multinomial_resize!(state, 50, check=false)
@@ -75,7 +75,7 @@ end
     end
 
     # Test resampling with invalid weights
-    with_logger(Logging.SimpleLogger(Logging.Error)) do
+    with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
         state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
         @test_throws ErrorException pf_residual_resize!(state, 50, check=true)
         state = pf_residual_resize!(state, 50, check=false)
@@ -105,7 +105,7 @@ end
     end
 
     # Test resampling with invalid weights
-    with_logger(Logging.SimpleLogger(Logging.Error)) do
+    with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
         state = pf_initialize(line_model, (0,), slope_choicemap(-3), 100)
         @test_throws ErrorException pf_optimal_resize!(state, 50, check=true)
         state = pf_optimal_resize!(state, 50, check=false)
