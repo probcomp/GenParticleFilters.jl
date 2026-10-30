@@ -1,4 +1,4 @@
-using GenParticleFilters, Gen, Test, Logging
+using GenParticleFilters, Gen, Test, Logging, Random
 
 @gen (static) function line_step(t::Int, x::Float64, slope::Float64)
     x = x + 1

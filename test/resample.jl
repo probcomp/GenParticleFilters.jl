@@ -15,12 +15,16 @@
     p_fn = w -> w / 2
     state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
-    old_lml_est = logsumexp(get_log_weights(state)) - log(100)
+    old_log_weights = copy(get_log_weights(state))
+    log_priorities = p_fn.(old_log_weights)
     state = pf_multinomial_resample!(state; priority_fn=p_fn)
     new_traces = get_traces(state)
-    new_lml_est = get_lml_est(state)
     @test new_traces == old_traces[state.parents]
-    @test new_lml_est ≈ old_lml_est
+    # Check that new weights are the ratios of weights over priorities,
+    # scaled by the total priority over the total weight
+    log_ratios = old_log_weights .- log_priorities
+    log_scale = logsumexp(log_priorities) - logsumexp(old_log_weights)
+    @test get_log_weights(state) ≈ log_ratios[state.parents] .+ log_scale
 
     # Test resampling with invalid weights
     with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
@@ -57,8 +61,8 @@ end
     p_fn = w -> w / 2
     state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
-    old_lml_est = logsumexp(get_log_weights(state)) - log(100)
-    log_priorities = p_fn.(get_log_weights(state))
+    old_log_weights = copy(get_log_weights(state))
+    log_priorities = p_fn.(old_log_weights)
     weights = exp.(log_priorities .- logsumexp(log_priorities))
     min_copies = floor.(Int, weights * 100)
     state = pf_residual_resample!(state; priority_fn=p_fn)
@@ -66,8 +70,11 @@ end
     copies = [sum([t1 == t2 for t1 in new_traces]) for t2 in old_traces]
     @test new_traces == old_traces[state.parents]
     @test all(copies .>= min_copies)
-    new_lml_est = get_lml_est(state)
-    @test new_lml_est ≈ old_lml_est
+    # Check that new weights are the ratios of weights over priorities,
+    # scaled by the total priority over the total weight
+    log_ratios = old_log_weights .- log_priorities
+    log_scale = logsumexp(log_priorities) - logsumexp(old_log_weights)
+    @test get_log_weights(state) ≈ log_ratios[state.parents] .+ log_scale
 
     # Test resampling with invalid weights
     with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
@@ -105,8 +112,8 @@ end
     p_fn = w -> w / 2
     state = pf_initialize(line_model, (10,), line_choicemap(10), 100)
     old_traces = get_traces(state)
-    old_lml_est = logsumexp(get_log_weights(state)) - log(100)
-    log_priorities = p_fn.(get_log_weights(state))
+    old_log_weights = copy(get_log_weights(state))
+    log_priorities = p_fn.(old_log_weights)
     weights = exp.(log_priorities .- logsumexp(log_priorities))
     max_weight, max_idx = findmax(weights)
     min_copies = floor.(Int, max_weight * 100)
@@ -115,8 +122,11 @@ end
     copies = sum([tr == old_traces[max_idx] for tr in new_traces])
     @test new_traces == old_traces[state.parents]
     @test copies >= min_copies
-    new_lml_est = get_lml_est(state)
-    @test new_lml_est ≈ old_lml_est
+    # Check that new weights are the ratios of weights over priorities,
+    # scaled by the total priority over the total weight
+    log_ratios = old_log_weights .- log_priorities
+    log_scale = logsumexp(log_priorities) - logsumexp(old_log_weights)
+    @test get_log_weights(state) ≈ log_ratios[state.parents] .+ log_scale
 
     # Test resampling with invalid weights
     with_logger(Logging.SimpleLogger(stderr, Logging.Error)) do
@@ -144,21 +154,57 @@ end
             block_idxs = idx:(idx+block_size-1)
             substate = state[block_idxs]
             old_traces = copy(get_traces(substate))
+            old_log_weights = copy(get_log_weights(substate))
             old_lml_est = get_lml_est(substate)
             substate = pf_resample!(substate, method; priority_fn=p_fn)
             new_traces = get_traces(substate)
             new_lml_est = get_lml_est(substate)
             @test new_traces == old_traces[substate.parents]
-            @test new_lml_est ≈ old_lml_est
+            if p_fn === nothing
+                @test new_lml_est ≈ old_lml_est
+            else
+                # Check that new weights are the ratios of weights over
+                # priorities, scaled by the average priority
+                log_priorities = p_fn.(old_log_weights)
+                log_ratios = old_log_weights .- log_priorities
+                log_scale = logsumexp(log_priorities) - log(block_size)
+                @test get_log_weights(substate) ≈
+                    log_ratios[substate.parents] .+ log_scale
+            end
             append!(parents_full, block_idxs[substate.parents])
         end
 
         # Test traces and log ML estimate after resampling blocks
         new_traces_full = get_traces(state)
         @test new_traces_full == old_traces_full[parents_full]
-        new_lml_est_full = get_lml_est(state)
-        @test new_lml_est_full ≈ old_lml_est_full
+        if p_fn === nothing
+            new_lml_est_full = get_lml_est(state)
+            @test new_lml_est_full ≈ old_lml_est_full
+        end
     end
+end
+
+@testset "Unbiased evidence estimate with priority resampling" begin
+    # z ~ bernoulli(0.5), y1 ~ bernoulli(z ? 0.9 : 0.1),
+    # y2 ~ bernoulli(z ? 0.2 : 0.7), with y1 = y2 = true, has evidence 1/8
+    @gen function coin_model(T::Int)
+        z ~ bernoulli(0.5)
+        y1 ~ bernoulli(z ? 0.9 : 0.1)
+        if T >= 2
+            y2 ~ bernoulli(z ? 0.2 : 0.7)
+        end
+    end
+    Random.seed!(1)
+    n_runs = 20000
+    est = 0.0
+    for _ in 1:n_runs
+        # Resample two particles with priority w^2
+        state = pf_initialize(coin_model, (1,), choicemap(:y1 => true), 2)
+        pf_multinomial_resample!(state; priority_fn=w -> 2w)
+        pf_update!(state, (2,), (UnknownChange(),), choicemap(:y2 => true))
+        est += exp(get_lml_est(state)) / n_runs
+    end
+    @test isapprox(est, 1/8, atol=0.005)
 end
 
 end
