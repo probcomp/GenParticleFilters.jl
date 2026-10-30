@@ -189,30 +189,29 @@ end
 "Update particle weights after a resampling step."
 function update_weights!(state::ParticleFilterState, log_priorities)
     n_particles = length(state.traces)
-    # Ensure logsumexp(log_weights) == log(n_particles) after resampling
     if log_priorities === state.log_weights
         # If priorities aren't customized, set all log weights to 0
         state.log_weights .= 0.0
     else
         # Otherwise, set new weights to the ratio of weights over priorities
         log_ws = state.log_weights[state.parents] .- log_priorities[state.parents]
-        # Adjust new weights such that they sum to the number of particles
-        state.log_weights .= log_ws .+ (log(n_particles) - logsumexp(log_ws))
+        # Account for the old mean weight already in log_ml_est.
+        log_scale = logsumexp(log_priorities) - logsumexp(state.log_weights)
+        state.log_weights .= log_ws .+ log_scale
     end
 end
 
 # Handle sub-state resampling differently since we can't update log_ml_est
 function update_weights!(state::ParticleFilterSubState, log_priorities)
     n_particles = length(state.traces)
-    # Ensure logsumexp(log_weights) remains equal after resampling
     if log_priorities === state.log_weights
         # If priorities aren't customized, set all weights to average weight
         state.log_weights .= logsumexp(state.log_weights) - log(n_particles)
     else
         # Otherwise, set new weights to the ratio of weights over priorities
         log_ws = state.log_weights[state.parents] .- log_priorities[state.parents]
-        # Adjust new weights such that they sum to the original total weight
-        log_total_weight = logsumexp(state.log_weights)
-        state.log_weights .= log_ws .+ (log_total_weight - logsumexp(log_ws))
+        # Substates retain the common factor in their particle weights.
+        log_scale = logsumexp(log_priorities) - log(n_particles)
+        state.log_weights .= log_ws .+ log_scale
     end
 end
