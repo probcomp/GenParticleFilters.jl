@@ -25,6 +25,31 @@
     @gen outlier_propose(tr, idx) = {:line => idx => :outlier} ~ bernoulli(0.9)
     trs_ws = [move_reweight(trace, outlier_propose, (1,)) for i in 1:100]
     @test all(w ≈ expected_w(outlier, tr[out_addr], slope) for (tr, w) in trs_ws)
+
+    # Test involution variant
+    expected_w = (out_old, out_new, slope) -> begin
+        logpdf(bernoulli, out_new, 0.1) - logpdf(bernoulli, out_old, 0.1) +
+        logpdf(normal, 0, slope, out_new ? 10. : 1.) -
+        logpdf(normal, 0, slope, out_old ? 10. : 1.)
+    end
+    @gen function null_propose(tr, idx) end
+    flip_outlier = (tr, fwd_choices, fwd_ret, args) -> begin
+        addr = :line => args[1] => :outlier
+        argdiffs = map((_) -> NoChange(), get_args(tr))
+        new_tr, w, _, _ = update(tr, get_args(tr), argdiffs,
+                                 choicemap((addr, !tr[addr])))
+        return new_tr, choicemap(), w
+    end
+    tr, w = move_reweight(trace, null_propose, (1,), flip_outlier)
+    @test tr[out_addr] == !outlier
+    @test w ≈ expected_w(outlier, !outlier, slope)
+    tr, w = move_reweight(trace, null_propose, (1,), flip_outlier;
+                          check=true, observations=observations)
+    @test w ≈ expected_w(outlier, !outlier, slope)
+    bad_observations = choicemap((:line => 1 => :y, 1))
+    @test_throws ErrorException move_reweight(
+        trace, null_propose, (1,), flip_outlier;
+        check=true, observations=bad_observations)
 end
 
 @testset "Move-accept rejuvenation" begin

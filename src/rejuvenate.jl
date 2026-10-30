@@ -148,7 +148,8 @@ function move_reweight(trace::Trace, proposal::GenerativeFunction,
 end
 
 function move_reweight(trace::Trace, proposal::GenerativeFunction,
-                       proposal_args::Tuple, involution)
+                       proposal_args::Tuple, involution;
+                       check=false, observations=EmptyChoiceMap())
     fwd_choices, fwd_score, fwd_ret =
         propose(proposal, (trace, proposal_args...,))
     new_trace, bwd_choices, weight =
